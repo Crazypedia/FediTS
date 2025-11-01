@@ -1,11 +1,63 @@
+import generator, { detector, MegalodonInterface } from 'megalodon';
 import type { MastodonInstance, MastodonRule } from '../types';
 
 export class InstanceAPIService {
   /**
-   * Fetch instance information directly from the instance's API
-   * Works with Mastodon, Pleroma, and compatible software
+   * Detect the type of Fediverse server
+   * Supports: Mastodon, Pleroma, Misskey, Friendica, GoToSocial, Firefish, Pixelfed
+   */
+  static async detectServerType(domain: string): Promise<'mastodon' | 'pleroma' | 'friendica' | 'gotosocial' | 'firefish' | 'pixelfed' | null> {
+    try {
+      const serverType = await detector(`https://${domain}`);
+      console.log(`Detected server type for ${domain}: ${serverType}`);
+      return serverType;
+    } catch (error) {
+      console.error('Error detecting server type:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Create a megalodon client for the instance
+   */
+  static async createClient(domain: string): Promise<MegalodonInterface | null> {
+    try {
+      const serverType = await this.detectServerType(domain);
+      if (!serverType) {
+        console.warn(`Could not detect server type for ${domain}, defaulting to mastodon`);
+        return generator('mastodon', `https://${domain}`);
+      }
+      return generator(serverType, `https://${domain}`);
+    } catch (error) {
+      console.error('Error creating megalodon client:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch instance information using megalodon
+   * Works with Mastodon, Pleroma, Misskey, and other Fediverse software
    */
   static async getInstanceInfo(domain: string): Promise<MastodonInstance | null> {
+    try {
+      const client = await this.createClient(domain);
+      if (!client) {
+        return null;
+      }
+
+      const response = await client.getInstance();
+      return response.data as unknown as MastodonInstance;
+    } catch (error) {
+      console.error('Instance API getInstanceInfo error:', error);
+      // Fallback to direct fetch
+      return this.getInstanceInfoFallback(domain);
+    }
+  }
+
+  /**
+   * Fallback method using direct fetch for instances that might not work with megalodon
+   */
+  private static async getInstanceInfoFallback(domain: string): Promise<MastodonInstance | null> {
     try {
       const response = await fetch(`https://${domain}/api/v1/instance`, {
         headers: {
@@ -21,15 +73,23 @@ export class InstanceAPIService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Instance API getInstanceInfo error:', error);
+      console.error('Instance API fallback error:', error);
       return null;
     }
   }
 
   /**
    * Fetch moderation rules from the instance
+   * Note: Not all instances support rules endpoint, so we use fallback
    */
   static async getRules(domain: string): Promise<MastodonRule[]> {
+    return this.getRulesFallback(domain);
+  }
+
+  /**
+   * Fallback method for fetching rules
+   */
+  private static async getRulesFallback(domain: string): Promise<MastodonRule[]> {
     try {
       const response = await fetch(`https://${domain}/api/v1/instance/rules`, {
         headers: {
@@ -39,7 +99,6 @@ export class InstanceAPIService {
       });
 
       if (!response.ok) {
-        // Rules endpoint might not exist on all instances
         if (response.status === 404) {
           console.warn(`Rules endpoint not available for ${domain}`);
           return [];
@@ -50,15 +109,23 @@ export class InstanceAPIService {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error('Instance API getRules error:', error);
+      console.error('Instance API getRules fallback error:', error);
       return [];
     }
   }
 
   /**
    * Fetch list of federated peers (if publicly available)
+   * Note: Not all instances expose peers, use direct fetch
    */
   static async getPeers(domain: string): Promise<string[]> {
+    return this.getPeersFallback(domain);
+  }
+
+  /**
+   * Fallback method for fetching peers
+   */
+  private static async getPeersFallback(domain: string): Promise<string[]> {
     try {
       const response = await fetch(`https://${domain}/api/v1/instance/peers`, {
         headers: {
@@ -68,7 +135,6 @@ export class InstanceAPIService {
       });
 
       if (!response.ok) {
-        // Peers endpoint might be disabled on some instances
         if (response.status === 404 || response.status === 403) {
           console.warn(`Peers endpoint not available for ${domain}`);
           return [];
@@ -79,7 +145,7 @@ export class InstanceAPIService {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error('Instance API getPeers error:', error);
+      console.error('Instance API getPeers fallback error:', error);
       return [];
     }
   }
@@ -94,11 +160,15 @@ export class InstanceAPIService {
 
     if (version.includes('mastodon')) return 'mastodon';
     if (version.includes('pleroma')) return 'pleroma';
+    if (version.includes('akkoma')) return 'akkoma';
     if (version.includes('misskey')) return 'misskey';
+    if (version.includes('firefish')) return 'firefish';
+    if (version.includes('calckey')) return 'calckey';
     if (version.includes('lemmy')) return 'lemmy';
     if (version.includes('pixelfed')) return 'pixelfed';
     if (version.includes('peertube')) return 'peertube';
     if (version.includes('friendica')) return 'friendica';
+    if (version.includes('gotosocial')) return 'gotosocial';
 
     return 'other';
   }
@@ -111,7 +181,11 @@ export class InstanceAPIService {
     rules: MastodonRule[];
     peers: string[];
     software?: string;
+    serverType?: string;
   }> {
+    // Detect server type first
+    const serverType = await this.detectServerType(domain);
+
     const instance = await this.getInstanceInfo(domain);
 
     if (!instance) {
@@ -119,7 +193,8 @@ export class InstanceAPIService {
         instance: null,
         rules: [],
         peers: [],
-        software: undefined
+        software: undefined,
+        serverType: serverType || undefined
       };
     }
 
@@ -130,6 +205,12 @@ export class InstanceAPIService {
 
     const software = this.detectSoftware(instance);
 
-    return { instance, rules, peers, software };
+    return {
+      instance,
+      rules,
+      peers,
+      software,
+      serverType: serverType || undefined
+    };
   }
 }
