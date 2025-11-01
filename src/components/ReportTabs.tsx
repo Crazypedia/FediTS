@@ -6,7 +6,7 @@ interface ReportTabsProps {
 }
 
 export default function ReportTabs({ report }: ReportTabsProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'moderation' | 'federation' | 'trust'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'moderation' | 'federation' | 'trust'>('overview');
 
   const tabStyle = (tab: string) => ({
     padding: '0.75rem 1.5rem',
@@ -22,6 +22,9 @@ export default function ReportTabs({ report }: ReportTabsProps) {
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '-1px', flexWrap: 'wrap' }}>
         <button style={tabStyle('overview')} onClick={() => setActiveTab('overview')}>
           Overview
+        </button>
+        <button style={tabStyle('technical')} onClick={() => setActiveTab('technical')}>
+          Technical
         </button>
         <button style={tabStyle('moderation')} onClick={() => setActiveTab('moderation')}>
           Moderation
@@ -42,6 +45,7 @@ export default function ReportTabs({ report }: ReportTabsProps) {
         textAlign: 'left'
       }}>
         {activeTab === 'overview' && <OverviewTab report={report} />}
+        {activeTab === 'technical' && <TechnicalTab report={report} />}
         {activeTab === 'moderation' && <ModerationTab report={report} />}
         {activeTab === 'federation' && <FederationTab report={report} />}
         {activeTab === 'trust' && <TrustTab report={report} />}
@@ -98,6 +102,102 @@ function OverviewTab({ report }: { report: InstanceReport }) {
             ))}
           </ul>
         </div>
+      )}
+    </div>
+  );
+}
+
+function TechnicalTab({ report }: { report: InstanceReport }) {
+  return (
+    <div>
+      <h3 style={{ marginBottom: '1rem' }}>Software Detection</h3>
+
+      <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem', marginBottom: '2rem' }}>
+        <dt style={{ fontWeight: 'bold' }}>Detected Software:</dt>
+        <dd style={{ textTransform: 'capitalize' }}>
+          {report.software || 'Unknown'}
+        </dd>
+
+        {report.version && (
+          <>
+            <dt style={{ fontWeight: 'bold' }}>Version:</dt>
+            <dd>{report.version}</dd>
+          </>
+        )}
+
+        {report.serverType && (
+          <>
+            <dt style={{ fontWeight: 'bold' }}>Server Type (Megalodon):</dt>
+            <dd style={{ textTransform: 'capitalize' }}>{report.serverType}</dd>
+          </>
+        )}
+      </dl>
+
+      <h3 style={{ marginBottom: '1rem' }}>Infrastructure</h3>
+
+      {report.infrastructure && (report.infrastructure.cloudProvider || report.infrastructure.cdn || report.infrastructure.server) ? (
+        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
+          {report.infrastructure.cloudProvider && (
+            <>
+              <dt style={{ fontWeight: 'bold' }}>Cloud Provider:</dt>
+              <dd>{report.infrastructure.cloudProvider}</dd>
+            </>
+          )}
+
+          {report.infrastructure.cdn && (
+            <>
+              <dt style={{ fontWeight: 'bold' }}>CDN:</dt>
+              <dd>{report.infrastructure.cdn}</dd>
+            </>
+          )}
+
+          {report.infrastructure.server && (
+            <>
+              <dt style={{ fontWeight: 'bold' }}>Server Software:</dt>
+              <dd>{report.infrastructure.server}</dd>
+            </>
+          )}
+
+          {report.infrastructure.country && (
+            <>
+              <dt style={{ fontWeight: 'bold' }}>Country:</dt>
+              <dd>{report.infrastructure.country}</dd>
+            </>
+          )}
+
+          {report.infrastructure.ip && (
+            <>
+              <dt style={{ fontWeight: 'bold' }}>IP Address:</dt>
+              <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{report.infrastructure.ip}</dd>
+            </>
+          )}
+        </dl>
+      ) : (
+        <p style={{ color: '#888' }}>Infrastructure details could not be detected from HTTP headers.</p>
+      )}
+
+      {report.infrastructure?.headers && Object.keys(report.infrastructure.headers).length > 0 && (
+        <details style={{ marginTop: '2rem' }}>
+          <summary style={{ cursor: 'pointer', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            HTTP Headers ({Object.keys(report.infrastructure.headers).length} headers)
+          </summary>
+          <div style={{
+            maxHeight: '300px',
+            overflow: 'auto',
+            marginTop: '0.5rem',
+            padding: '1rem',
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '4px',
+            fontFamily: 'monospace',
+            fontSize: '0.85rem'
+          }}>
+            {Object.entries(report.infrastructure.headers).map(([key, value]) => (
+              <div key={key} style={{ marginBottom: '0.25rem' }}>
+                <span style={{ color: 'var(--primary-color)' }}>{key}:</span> {value}
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );
