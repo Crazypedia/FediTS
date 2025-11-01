@@ -4,6 +4,8 @@ export interface InstanceReport {
   timestamp: Date;
   software?: string;
   version?: string;
+  serverType?: string; // Detected server type (mastodon, pleroma, misskey, etc.)
+  infrastructure?: InfrastructureInfo;
   uptime?: number;
   moderationPolicies?: ModerationPolicy[];
   peers?: string[];
@@ -12,6 +14,15 @@ export interface InstanceReport {
   serverCovenant?: CovenantStatus;
   safetyScore: SafetyScore;
   errors: ErrorInfo[];
+}
+
+export interface InfrastructureInfo {
+  cloudProvider?: string;
+  cdn?: string;
+  server?: string;
+  country?: string;
+  ip?: string;
+  headers?: Record<string, string>;
 }
 
 export interface ModerationPolicy {

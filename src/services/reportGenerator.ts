@@ -3,6 +3,7 @@ import { FediDBService } from './fedidb';
 import { InstanceAPIService } from './instance';
 import { CovenantService } from './covenant';
 import { BlocklistService } from './blocklists';
+import { InfrastructureService } from './infrastructure';
 
 export class ReportGenerator {
   /**
@@ -19,7 +20,8 @@ export class ReportGenerator {
       fedidbData,
       instanceData,
       covenantStatus,
-      blocklistMatches
+      blocklistMatches,
+      infrastructure
     ] = await Promise.all([
       FediDBService.getCompleteData(domain).catch(err => {
         errors.push({
@@ -35,7 +37,7 @@ export class ReportGenerator {
           message: err.message,
           timestamp: new Date()
         });
-        return { instance: null, rules: [], peers: [], software: undefined };
+        return { instance: null, rules: [], peers: [], software: undefined, serverType: undefined };
       }),
       CovenantService.checkCovenant(domain).catch(err => {
         errors.push({
@@ -52,6 +54,14 @@ export class ReportGenerator {
           timestamp: new Date()
         });
         return [];
+      }),
+      InfrastructureService.detectInfrastructure(domain).catch(err => {
+        errors.push({
+          source: 'Infrastructure',
+          message: err.message,
+          timestamp: new Date()
+        });
+        return {};
       })
     ]);
 
@@ -93,6 +103,8 @@ export class ReportGenerator {
       timestamp,
       software,
       version,
+      serverType: instanceData.serverType,
+      infrastructure,
       moderationPolicies,
       peers,
       blockedInstances,
