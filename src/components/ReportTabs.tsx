@@ -5,6 +5,16 @@ interface ReportTabsProps {
   report: InstanceReport;
 }
 
+// Helper function to get country flag emoji from country code
+function getCountryFlag(countryCode: string): string {
+  if (countryCode.length !== 2) return '🌍';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
 export default function ReportTabs({ report }: ReportTabsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'moderation' | 'federation' | 'trust'>('overview');
 
@@ -133,47 +143,85 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
         )}
       </dl>
 
-      <h3 style={{ marginBottom: '1rem' }}>Infrastructure</h3>
+      <h3 style={{ marginBottom: '1rem' }}>Infrastructure & Hosting</h3>
 
-      {report.infrastructure && (report.infrastructure.cloudProvider || report.infrastructure.cdn || report.infrastructure.server) ? (
-        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
-          {report.infrastructure.cloudProvider && (
-            <>
-              <dt style={{ fontWeight: 'bold' }}>Cloud Provider:</dt>
-              <dd>{report.infrastructure.cloudProvider}</dd>
-            </>
+      {report.infrastructure && (report.infrastructure.hostingProvider || report.infrastructure.cloudProvider || report.infrastructure.country) ? (
+        <>
+          {/* Summary badges */}
+          {report.infrastructure.isCloudflare && (
+            <div style={{
+              display: 'inline-block',
+              padding: '0.5rem 1rem',
+              backgroundColor: 'rgba(249, 115, 22, 0.1)',
+              border: '1px solid rgba(249, 115, 22, 0.3)',
+              borderRadius: '4px',
+              marginBottom: '1rem',
+              fontSize: '0.9rem'
+            }}>
+              🛡️ Protected by Cloudflare
+            </div>
           )}
 
-          {report.infrastructure.cdn && (
-            <>
-              <dt style={{ fontWeight: 'bold' }}>CDN:</dt>
-              <dd>{report.infrastructure.cdn}</dd>
-            </>
-          )}
+          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
+            {report.infrastructure.hostingProvider && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Hosting Provider:</dt>
+                <dd>{report.infrastructure.hostingProvider}</dd>
+              </>
+            )}
 
-          {report.infrastructure.server && (
-            <>
-              <dt style={{ fontWeight: 'bold' }}>Server Software:</dt>
-              <dd>{report.infrastructure.server}</dd>
-            </>
-          )}
+            {report.infrastructure.cloudProvider && !report.infrastructure.hostingProvider && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Cloud Platform:</dt>
+                <dd>{report.infrastructure.cloudProvider}</dd>
+              </>
+            )}
 
-          {report.infrastructure.country && (
-            <>
-              <dt style={{ fontWeight: 'bold' }}>Country:</dt>
-              <dd>{report.infrastructure.country}</dd>
-            </>
-          )}
+            {report.infrastructure.country && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Location:</dt>
+                <dd>
+                  {report.infrastructure.countryCode && getCountryFlag(report.infrastructure.countryCode)}{' '}
+                  {report.infrastructure.city && `${report.infrastructure.city}, `}
+                  {report.infrastructure.country}
+                </dd>
+              </>
+            )}
 
-          {report.infrastructure.ip && (
-            <>
-              <dt style={{ fontWeight: 'bold' }}>IP Address:</dt>
-              <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{report.infrastructure.ip}</dd>
-            </>
-          )}
-        </dl>
+            {report.infrastructure.ip && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>IP Address:</dt>
+                <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{report.infrastructure.ip}</dd>
+              </>
+            )}
+
+            {report.infrastructure.asn && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>ASN:</dt>
+                <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>
+                  {report.infrastructure.asn}
+                  {report.infrastructure.asnOrg && ` (${report.infrastructure.asnOrg})`}
+                </dd>
+              </>
+            )}
+
+            {report.infrastructure.cdn && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>CDN:</dt>
+                <dd>{report.infrastructure.cdn}</dd>
+              </>
+            )}
+
+            {report.infrastructure.server && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Server Software:</dt>
+                <dd>{report.infrastructure.server}</dd>
+              </>
+            )}
+          </dl>
+        </>
       ) : (
-        <p style={{ color: '#888' }}>Infrastructure details could not be detected from HTTP headers.</p>
+        <p style={{ color: '#888' }}>Infrastructure details could not be detected. This may be due to CORS restrictions or privacy configurations.</p>
       )}
 
       {report.infrastructure?.headers && Object.keys(report.infrastructure.headers).length > 0 && (

@@ -18,10 +18,16 @@ export interface InstanceReport {
 
 export interface InfrastructureInfo {
   cloudProvider?: string;
+  hostingProvider?: string;
   cdn?: string;
   server?: string;
   country?: string;
+  countryCode?: string;
+  city?: string;
   ip?: string;
+  asn?: string;
+  asnOrg?: string;
+  isCloudflare?: boolean;
   headers?: Record<string, string>;
 }
 
