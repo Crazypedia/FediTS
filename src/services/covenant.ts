@@ -1,18 +1,19 @@
 import type { CovenantStatus } from '../types';
 
 /**
- * Service for checking if an instance is part of the Fediverse Server Covenant
+ * Service for checking if an instance is part of the Mastodon Server Covenant
  *
- * The Server Covenant is a set of commitments made by server operators:
+ * The Mastodon Server Covenant is a set of commitments made by server operators:
  * - Active moderation against racism, sexism, homophobia, transphobia
  * - Daily backups
  * - At least one other person with access to the server infrastructure
  * - Commitment to give users at least 3 months warning before shutting down
  *
- * List available at: https://github.com/lightpub-dev/server-covenant-list
+ * Official covenant: https://joinmastodon.org/covenant
+ * List available at: https://api.joinmastodon.org/servers
  */
 
-const COVENANT_LIST_URL = 'https://raw.githubusercontent.com/lightpub-dev/server-covenant-list/main/list.json';
+const COVENANT_LIST_URL = 'https://api.joinmastodon.org/servers';
 
 // Cache the covenant list to avoid repeated fetches
 let covenantListCache: Set<string> | null = null;
@@ -21,35 +22,44 @@ const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 export class CovenantService {
   /**
-   * Fetch the Server Covenant list
+   * Fetch the Mastodon Server Covenant list
    */
   private static async fetchCovenantList(): Promise<Set<string>> {
     try {
       const response = await fetch(COVENANT_LIST_URL, {
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(15000)
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch covenant list: ${response.status}`);
+        console.warn(`Failed to fetch covenant list: ${response.status}`);
+        return new Set();
       }
 
       const data = await response.json();
 
-      // The list format may vary, adapt as needed
-      // Assuming it's an array of domains or objects with domain property
-      let domains: string[];
+      // joinmastodon.org API returns an array of server objects
+      let domains: string[] = [];
 
       if (Array.isArray(data)) {
-        domains = data.map(item =>
+        // Extract domain from each server object
+        domains = data.map(item => {
+          if (typeof item === 'string') {
+            return item;
+          }
+          // Try various property names
+          return item.domain || item.host || item.instance || item.name;
+        }).filter(Boolean);
+      } else if (data.servers && Array.isArray(data.servers)) {
+        // Handle wrapped response
+        domains = data.servers.map((item: any) =>
           typeof item === 'string' ? item : item.domain || item.host
         ).filter(Boolean);
-      } else if (data.servers) {
-        domains = data.servers;
       } else {
-        console.error('Unexpected covenant list format:', data);
+        console.warn('Unexpected covenant list format:', data);
         return new Set();
       }
 
+      console.log(`Loaded ${domains.length} servers from Mastodon Server Covenant`);
       return new Set(domains.map(d => d.toLowerCase()));
     } catch (error) {
       console.error('Error fetching Server Covenant list:', error);
