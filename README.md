@@ -2,6 +2,12 @@
 
 A single-page application that compiles trust, moderation, and infrastructure transparency details for any Fediverse instance.
 
+## 🌐 Live Demo
+
+**[Try FediTS on GitHub Pages](https://crazypedia.github.io/FediTS/)**
+
+Enter any Fediverse domain (e.g., `mastodon.social`, `fosstodon.org`) to see its trust and safety report.
+
 ## Features
 
 - **Multi-Source Data Aggregation**: Queries FediDB, Fediverse Observer, and instance APIs
@@ -146,17 +152,36 @@ For enhanced access to private or rate-limited data, API keys can be configured:
 
 ## Deployment
 
-### Static Hosting (Recommended for MVP)
+### GitHub Pages (Recommended - Automated)
 
-The application is a static SPA and can be deployed to:
+This project is configured for automatic deployment to GitHub Pages:
+
+1. **Enable GitHub Pages** in your repository settings:
+   - Go to Settings → Pages
+   - Under "Build and deployment", select **Source: GitHub Actions**
+
+2. **Push to main branch**:
+   ```bash
+   git push origin main
+   ```
+
+3. The GitHub Actions workflow will automatically:
+   - Build the project
+   - Deploy to GitHub Pages
+   - Your site will be available at: `https://[username].github.io/FediTS/`
+
+The workflow runs automatically on every push to `main`, or you can trigger it manually from the Actions tab.
+
+### Other Static Hosting Options
+
+The application is a static SPA and can also be deployed to:
 
 - **Netlify**: `npm run build` then deploy `dist/` folder
 - **Vercel**: Connect GitHub repo and deploy automatically
-- **GitHub Pages**: Use `gh-pages` package
 - **Cloudflare Pages**: Connect repo and deploy
 - **Traditional cPanel/Shared Hosting**: Upload `dist/` folder contents
 
-### Example deployment commands:
+### Manual Build & Deploy
 
 ```bash
 # Build for production
@@ -165,6 +190,8 @@ npm run build
 # The dist/ folder contains the complete static site
 # Upload to any web server or static hosting service
 ```
+
+**Note**: For non-GitHub-Pages deployments, you may need to adjust the `base` path in `vite.config.ts` from `/FediTS/` to `/` or your custom path.
 
 ## Privacy & Ethics
 
