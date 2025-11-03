@@ -1,4 +1,4 @@
-import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis, EnhancedModerationAnalysis, MetadataScore, NetworkHealthScore } from '../types';
+import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis, EnhancedModerationAnalysis } from '../types';
 import { FediDBService } from './fedidb';
 import { InstanceAPIService } from './instance';
 import { CovenantService } from './covenant';
@@ -8,8 +8,6 @@ import { FediverseObserverService } from './fediverse-observer';
 import { WellKnownService } from './well-known';
 import { ModerationPolicyAnalyzer } from '../utils/moderationAnalyzer';
 import { EnhancedModerationAnalyzer } from '../utils/enhancedModerationAnalyzer';
-import { MetadataScorer } from '../utils/metadataScoring';
-import { NetworkHealthScorer } from '../utils/networkHealthScoring';
 
 export class ReportGenerator {
   /**
@@ -182,33 +180,12 @@ export class ReportGenerator {
       ? wellKnown.nodeInfo.software.name.toLowerCase()
       : undefined;
 
-    // Calculate metadata quality score
-    // Create a partial report object for scoring
-    const partialReportForMetadata: Partial<InstanceReport> = {
-      domain,
-      wellKnown,
-      moderationPolicies
-    };
-    const metadataScore = MetadataScorer.score(partialReportForMetadata as InstanceReport);
-
-    // Calculate network health score
-    const partialReportForNetwork: Partial<InstanceReport> = {
-      domain,
-      peers,
-      peersTotalCount,
-      blockedInstances,
-      externalBlocklists: blocklistMatches
-    };
-    const networkHealthScore = await NetworkHealthScorer.score(partialReportForNetwork as InstanceReport);
-
     // Calculate safety score (use enhanced analysis if available, fallback to legacy)
     const safetyScore = this.calculateSafetyScore({
       hasInstanceData: !!instanceData.instance,
       hasModerationPolicies: moderationPolicies.length > 0,
       moderationAnalysis,
       enhancedModerationAnalysis,
-      metadataScore,
-      networkHealthScore,
       hasPeers: peers.length > 0,
       blocklistMatches,
       covenantStatus,
@@ -227,8 +204,6 @@ export class ReportGenerator {
       moderationPolicies,
       moderationAnalysis,
       enhancedModerationAnalysis,
-      metadataScore,
-      networkHealthScore,
       peers,
       peersTotalCount,
       blockedInstances,
@@ -260,24 +235,12 @@ export class ReportGenerator {
     hasModerationPolicies: boolean;
     moderationAnalysis?: ModerationAnalysis;
     enhancedModerationAnalysis?: EnhancedModerationAnalysis;
-    metadataScore?: MetadataScore;
-    networkHealthScore?: NetworkHealthScore;
     hasPeers: boolean;
     blocklistMatches: any[];
     covenantStatus: any;
     errors: ErrorInfo[];
   }): SafetyScore {
     const flags: string[] = [];
-
-    // Add metadata quality flags
-    if (data.metadataScore) {
-      flags.push(...data.metadataScore.flags);
-    }
-
-    // Add network health flags
-    if (data.networkHealthScore) {
-      flags.push(...data.networkHealthScore.flags);
-    }
 
     // Uptime/Responsiveness score (0-25)
     let uptimeScore = 0;
