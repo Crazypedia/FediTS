@@ -1,7 +1,10 @@
 /**
  * Service for detecting infrastructure and hosting information
  * Detects cloud providers, CDN, server software, hosting provider, country, etc.
+ * Uses IP range matching against known provider ranges for accurate detection.
  */
+
+import { detectProviderFromIP } from '../utils/ipRanges';
 
 export interface InfrastructureInfo {
   cloudProvider?: string;
@@ -352,9 +355,58 @@ export class InfrastructureService {
       if (ip) {
         info.ip = ip;
 
-        // Get geolocation and hosting provider info
+        // First, check IP against known provider ranges (most accurate)
+        const ipRangeMatch = detectProviderFromIP(ip);
+        if (ipRangeMatch) {
+          console.log(`IP ${ip} matched known range: ${ipRangeMatch.provider} (${ipRangeMatch.category})`);
+
+          if (ipRangeMatch.category === 'cdn') {
+            // It's a CDN - only set if not already detected
+            if (!info.cdn) {
+              info.cdn = ipRangeMatch.provider;
+              if (ipRangeMatch.provider === 'Cloudflare') {
+                info.isCloudflare = true;
+                info.cloudProvider = 'Behind Cloudflare';
+              }
+            }
+          } else if (ipRangeMatch.category === 'cloud') {
+            // It's a cloud provider
+            if (!info.cloudProvider) {
+              info.cloudProvider = ipRangeMatch.provider;
+            }
+          } else if (ipRangeMatch.category === 'hosting') {
+            // It's a hosting provider
+            if (!info.hostingProvider) {
+              info.hostingProvider = ipRangeMatch.provider;
+            }
+          }
+        }
+
+        // Get geolocation and ASN info (may supplement or override)
         const ipInfo = await this.getIPInfo(ip);
-        Object.assign(info, ipInfo);
+
+        // Merge ASN-based detection with IP range detection
+        // Prefer IP range detection as it's more accurate
+        if (ipInfo.country && !info.country) {
+          info.country = ipInfo.country;
+        }
+        if (ipInfo.countryCode && !info.countryCode) {
+          info.countryCode = ipInfo.countryCode;
+        }
+        if (ipInfo.city && !info.city) {
+          info.city = ipInfo.city;
+        }
+        if (ipInfo.asn && !info.asn) {
+          info.asn = ipInfo.asn;
+        }
+        if (ipInfo.asnOrg && !info.asnOrg) {
+          info.asnOrg = ipInfo.asnOrg;
+        }
+
+        // Use ASN-based hosting detection only if IP range didn't detect anything
+        if (ipInfo.hostingProvider && !info.hostingProvider && !ipRangeMatch) {
+          info.hostingProvider = ipInfo.hostingProvider;
+        }
 
         // If we detected hosting provider but not cloud provider, use hosting provider
         if (info.hostingProvider && !info.cloudProvider) {
