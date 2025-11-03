@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-03T00:00:00Z",
+  "source": "FediTS Community Curation",
+  "instances": [
+    {
+      "domain": "mastodon.social",
+      "reputation": "trusted",
+      "reason": "Official Mastodon instance, well-moderated, part of Mastodon Server Covenant",
+      "addedDate": "2025-01-01T00:00:00Z",
+      "tags": ["mastodon", "general", "covenant"],
+      "reviewDate": "2025-11-01T00:00:00Z"
+    },
+    {
+      "domain": "mastodon.online",
+      "reputation": "trusted",
+      "reason": "Large, well-established instance with strong moderation policies",
+      "addedDate": "2025-01-01T00:00:00Z",
+      "tags": ["mastodon", "general"],
+      "reviewDate": "2025-11-01T00:00:00Z"
+    },
+    {
+      "domain": "fosstodon.org",
+      "reputation": "trusted",
+      "reason": "FLOSS-focused community with clear moderation policies",
+      "addedDate": "2025-01-01T00:00:00Z",
+      "tags": ["mastodon", "tech", "floss"],
+      "reviewDate": "2025-11-01T00:00:00Z"
+    },
+    {
+      "domain": "hachyderm.io",
+      "reputation": "trusted",
+      "reason": "Tech-focused instance with strong community governance",
+      "addedDate": "2025-01-01T00:00:00Z",
+      "tags": ["mastodon", "tech"],
+      "reviewDate": "2025-11-01T00:00:00Z"
+    },
+    {
+      "domain": "mstdn.social",
+      "reputation": "trusted",
+      "reason": "Well-moderated general-purpose instance",
+      "addedDate": "2025-01-01T00:00:00Z",
+      "tags": ["mastodon", "general"],
+      "reviewDate": "2025-11-01T00:00:00Z"
+    }
+  ]
+}
