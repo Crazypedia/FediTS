@@ -136,6 +136,124 @@ export class InfrastructureService {
   }
 
   /**
+   * Detect CDN via DNS CNAME records
+   */
+  private static async detectCDNviaDNS(domain: string): Promise<string | null> {
+    try {
+      const response = await fetch(
+        `https://dns.google/resolve?name=${domain}&type=CNAME`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+
+      if (data.Answer) {
+        for (const record of data.Answer) {
+          if (record.type === 5) { // CNAME record
+            const cname = record.data.toLowerCase();
+
+            // Check common CDN patterns
+            if (cname.includes('cloudflare')) return 'Cloudflare';
+            if (cname.includes('fastly')) return 'Fastly';
+            if (cname.includes('akamai')) return 'Akamai';
+            if (cname.includes('cloudfront')) return 'AWS CloudFront';
+            if (cname.includes('cdn77')) return 'CDN77';
+            if (cname.includes('stackpath')) return 'StackPath';
+            if (cname.includes('bunnycdn') || cname.includes('b-cdn')) return 'BunnyCDN';
+            if (cname.includes('imperva') || cname.includes('incapsula')) return 'Imperva';
+            if (cname.includes('edgecast')) return 'Edgecast (Verizon)';
+            if (cname.includes('netlify')) return 'Netlify';
+            if (cname.includes('vercel')) return 'Vercel';
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error detecting CDN via DNS:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Enhanced CDN detection from HTTP headers
+   */
+  private static detectCDNFromHeaders(headers: Record<string, string>): string | null {
+    // Cloudflare
+    if (headers['cf-ray'] || headers['cf-cache-status'] || headers['cf-request-id']) {
+      return 'Cloudflare';
+    }
+
+    // Fastly
+    if (headers['x-served-by']?.includes('fastly') ||
+        headers['x-fastly-request-id'] ||
+        headers['fastly-ff']) {
+      return 'Fastly';
+    }
+
+    // Akamai
+    if (headers['x-akamai-request-id'] ||
+        headers['x-akamai-transformed'] ||
+        headers['server']?.toLowerCase().includes('akamaighost')) {
+      return 'Akamai';
+    }
+
+    // AWS CloudFront
+    if (headers['x-amz-cf-id'] || headers['x-amz-cf-pop']) {
+      return 'AWS CloudFront';
+    }
+
+    // BunnyCDN
+    if (headers['cdn-pullzone'] || headers['bunnycdn-cache-status']) {
+      return 'BunnyCDN';
+    }
+
+    // CDN77
+    if (headers['x-cdn'] === 'cdn77') {
+      return 'CDN77';
+    }
+
+    // StackPath
+    if (headers['server']?.includes('stackpath') || headers['x-sp-url']) {
+      return 'StackPath';
+    }
+
+    // Check via header for proxy/CDN chains
+    if (headers['via']) {
+      const via = headers['via'].toLowerCase();
+      if (via.includes('cloudflare')) return 'Cloudflare';
+      if (via.includes('fastly')) return 'Fastly';
+      if (via.includes('akamai')) return 'Akamai';
+      if (via.includes('varnish')) return 'Varnish Cache';
+    }
+
+    // Check x-cache header
+    if (headers['x-cache']) {
+      const cache = headers['x-cache'].toLowerCase();
+      if (cache.includes('cloudfront')) return 'AWS CloudFront';
+      if (cache.includes('fastly')) return 'Fastly';
+    }
+
+    // Check server-timing header (some CDNs expose this)
+    if (headers['server-timing']) {
+      const timing = headers['server-timing'].toLowerCase();
+      if (timing.includes('cdn')) return 'CDN (detected via server-timing)';
+    }
+
+    // Check cdn-loop header (RFC 8586 - CDN loop prevention)
+    if (headers['cdn-loop']) {
+      const loop = headers['cdn-loop'].toLowerCase();
+      if (loop.includes('cloudflare')) return 'Cloudflare';
+      if (loop.includes('fastly')) return 'Fastly';
+      if (loop.includes('akamai')) return 'Akamai';
+    }
+
+    return null;
+  }
+
+  /**
    * Detect infrastructure information from HTTP headers and DNS
    */
   static async detectInfrastructure(domain: string): Promise<InfrastructureInfo> {
@@ -161,27 +279,13 @@ export class InfrastructureService {
         info.server = headers['server'];
       }
 
-      // Detect Cloudflare specifically
-      if (headers['cf-ray'] || headers['cf-cache-status'] || headers['cf-request-id']) {
-        info.isCloudflare = true;
-        info.cdn = 'Cloudflare';
-      }
-
-      // Detect other CDNs
-      if (!info.cdn) {
-        const cdnHeaders = [
-          { header: 'x-amz-cf-id', cdn: 'AWS CloudFront' },
-          { header: 'x-fastly-request-id', cdn: 'Fastly' },
-          { header: 'x-akamai-transformed', cdn: 'Akamai' },
-          { header: 'x-cache', cdn: 'Generic CDN' },
-          { header: 'x-edge-location', cdn: 'Edge Network' },
-        ];
-
-        for (const { header, cdn } of cdnHeaders) {
-          if (headers[header]) {
-            info.cdn = cdn;
-            break;
-          }
+      // Use enhanced CDN detection from HTTP headers
+      const cdnFromHeaders = this.detectCDNFromHeaders(headers);
+      if (cdnFromHeaders) {
+        info.cdn = cdnFromHeaders;
+        // Mark Cloudflare specifically
+        if (cdnFromHeaders === 'Cloudflare') {
+          info.isCloudflare = true;
         }
       }
 
@@ -213,6 +317,23 @@ export class InfrastructureService {
 
     } catch (error) {
       console.error('Error detecting infrastructure from headers:', error);
+    }
+
+    // If CDN not detected via headers, try DNS CNAME detection
+    if (!info.cdn) {
+      try {
+        const cdnViaDNS = await this.detectCDNviaDNS(domain);
+        if (cdnViaDNS) {
+          info.cdn = cdnViaDNS;
+          console.log(`CDN detected via DNS CNAME: ${cdnViaDNS}`);
+          // Mark Cloudflare specifically
+          if (cdnViaDNS === 'Cloudflare') {
+            info.isCloudflare = true;
+          }
+        }
+      } catch (error) {
+        console.error('Error detecting CDN via DNS:', error);
+      }
     }
 
     // Resolve IP and get geolocation/hosting info
