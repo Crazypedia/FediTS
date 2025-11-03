@@ -225,7 +225,7 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
         <dd style={{ textTransform: 'capitalize' }}>
           {report.software || 'Unknown'}
           {report.software && report.software !== 'other' && (
-            <SourceBadge source="instance-api" tooltip="Parsed from version string" />
+            <SourceBadge source="instance-api" tooltip="Parsed from version string using regex patterns" />
           )}
           {report.software === 'other' && report.version && (
             <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
@@ -241,14 +241,72 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
               {report.serverType}
               <SourceBadge source="megalodon" tooltip="Detected using Megalodon library server type detector" />
               {report.software && report.software !== 'unknown' && report.serverType !== report.software && (
-                <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
-                  (differs from parsed: {report.software})
+                <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: 'var(--warning-color)' }}>
+                  ⚠ differs from parsed: {report.software}
                 </span>
               )}
             </dd>
           </>
         )}
+
+        {report.nodeInfoSoftware && (
+          <>
+            <dt style={{ fontWeight: 'bold' }}>NodeInfo Detection:</dt>
+            <dd style={{ textTransform: 'capitalize' }}>
+              {report.nodeInfoSoftware}
+              <SourceBadge source="instance-api" tooltip="From .well-known/nodeinfo software field" />
+              {(() => {
+                const conflicts = [];
+                if (report.software && report.software !== 'unknown' && report.software !== 'other' &&
+                    report.nodeInfoSoftware !== report.software) {
+                  conflicts.push(`parsed: ${report.software}`);
+                }
+                if (report.serverType && report.nodeInfoSoftware !== report.serverType) {
+                  conflicts.push(`megalodon: ${report.serverType}`);
+                }
+                return conflicts.length > 0 ? (
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: 'var(--warning-color)' }}>
+                    ⚠ differs from {conflicts.join(', ')}
+                  </span>
+                ) : null;
+              })()}
+            </dd>
+          </>
+        )}
       </dl>
+
+      {/* Detection consistency warning */}
+      {(() => {
+        const detections = [
+          { name: 'Parsed', value: report.software },
+          { name: 'Megalodon', value: report.serverType },
+          { name: 'NodeInfo', value: report.nodeInfoSoftware }
+        ].filter(d => d.value && d.value !== 'unknown' && d.value !== 'other');
+
+        const uniqueValues = new Set(detections.map(d => d.value));
+
+        if (detections.length >= 2 && uniqueValues.size > 1) {
+          return (
+            <div style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '8px',
+              fontSize: '0.9rem'
+            }}>
+              <strong>⚠ Detection Inconsistency:</strong> Multiple detection methods returned different results.
+              This is common with forks like Sharkey (Misskey fork) that may be detected as the base software.
+              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                {detections.map((d, i) => (
+                  <div key={i}>• {d.name}: {d.value}</div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <h3 style={{ marginBottom: '1rem' }}>Infrastructure & Hosting</h3>
 
