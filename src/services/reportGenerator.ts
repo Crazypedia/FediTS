@@ -5,6 +5,7 @@ import { CovenantService } from './covenant';
 import { BlocklistService } from './blocklists';
 import { InfrastructureService } from './infrastructure';
 import { FediverseObserverService } from './fediverse-observer';
+import { WellKnownService } from './well-known';
 
 export class ReportGenerator {
   /**
@@ -30,7 +31,8 @@ export class ReportGenerator {
       observerData,
       covenantStatus,
       blocklistMatches,
-      infrastructure
+      infrastructure,
+      wellKnown
     ] = await Promise.all([
       FediDBService.getCompleteData(domain).catch(err => {
         errors.push({
@@ -79,6 +81,19 @@ export class ReportGenerator {
           timestamp: new Date()
         });
         return {};
+      }),
+      WellKnownService.getCompleteData(domain).catch(err => {
+        errors.push({
+          source: 'Well-Known',
+          message: err.message,
+          timestamp: new Date()
+        });
+        return {
+          supportsWebfinger: false,
+          supportsActivityPub: false,
+          hasHostMeta: false,
+          errors: [err.message]
+        };
       })
     ]);
 
@@ -164,6 +179,7 @@ export class ReportGenerator {
       version,
       serverType: instanceData.serverType,
       infrastructure,
+      wellKnown,
       moderationPolicies,
       peers,
       peersTotalCount,

@@ -17,7 +17,7 @@ function getCountryFlag(countryCode: string): string {
 }
 
 export default function ReportTabs({ report }: ReportTabsProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'moderation' | 'federation' | 'trust'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'moderation' | 'federation' | 'trust' | 'metadata'>('overview');
 
   const tabStyle = (tab: string) => ({
     padding: '0.75rem 1.5rem',
@@ -104,6 +104,9 @@ export default function ReportTabs({ report }: ReportTabsProps) {
         <button style={tabStyle('trust')} onClick={() => setActiveTab('trust')}>
           Trust
         </button>
+        <button style={tabStyle('metadata')} onClick={() => setActiveTab('metadata')}>
+          Metadata
+        </button>
       </div>
 
       <div style={{
@@ -118,6 +121,7 @@ export default function ReportTabs({ report }: ReportTabsProps) {
         {activeTab === 'moderation' && <ModerationTab report={report} />}
         {activeTab === 'federation' && <FederationTab report={report} />}
         {activeTab === 'trust' && <TrustTab report={report} />}
+        {activeTab === 'metadata' && <MetadataTab report={report} />}
       </div>
     </div>
   );
@@ -524,6 +528,363 @@ function TrustTab({ report }: { report: InstanceReport }) {
           <p className="success">✓ Not found on checked blocklists (GardenFence, IFTAS DNI).</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function MetadataTab({ report }: { report: InstanceReport }) {
+  const wellKnown = report.wellKnown;
+
+  if (!wellKnown) {
+    return (
+      <div>
+        <p style={{ color: '#888' }}>No metadata information available.</p>
+      </div>
+    );
+  }
+
+  const hasAnyData = wellKnown.nodeInfo || wellKnown.robotsTxt || wellKnown.securityTxt;
+
+  return (
+    <div>
+      <h3 style={{ marginBottom: '1rem' }}>Instance Metadata & Configuration</h3>
+
+      {/* Protocol Support Summary */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h4 style={{ marginBottom: '0.75rem' }}>Fediverse Protocol Support</h4>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          {wellKnown.supportsActivityPub && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '4px'
+            }}>
+              ✓ ActivityPub Supported
+            </div>
+          )}
+          {wellKnown.supportsWebfinger && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '4px'
+            }}>
+              ✓ Webfinger Supported
+            </div>
+          )}
+          {wellKnown.hasHostMeta && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'rgba(139, 92, 246, 0.1)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              borderRadius: '4px'
+            }}>
+              ✓ Host-Meta Available
+            </div>
+          )}
+          {!wellKnown.supportsActivityPub && !wellKnown.supportsWebfinger && !wellKnown.hasHostMeta && (
+            <div style={{
+              padding: '0.5rem 1rem',
+              color: '#888',
+              fontStyle: 'italic'
+            }}>
+              No standard Fediverse protocols detected
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* NodeInfo Data (Fediverse-specific) */}
+      {wellKnown.nodeInfo && (
+        <div style={{ marginBottom: '2rem' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>
+            NodeInfo Data (Fediverse Standard)
+            <SourceBadge source="instance-api" tooltip="From .well-known/nodeinfo endpoint" />
+          </h4>
+          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
+            <dt style={{ fontWeight: 'bold' }}>Software:</dt>
+            <dd style={{ textTransform: 'capitalize' }}>
+              {wellKnown.nodeInfo.software.name} {wellKnown.nodeInfo.software.version}
+            </dd>
+
+            {wellKnown.nodeInfo.protocols.length > 0 && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Protocols:</dt>
+                <dd style={{ textTransform: 'capitalize' }}>
+                  {wellKnown.nodeInfo.protocols.join(', ')}
+                </dd>
+              </>
+            )}
+
+            <dt style={{ fontWeight: 'bold' }}>Open Registrations:</dt>
+            <dd>
+              {wellKnown.nodeInfo.openRegistrations ? (
+                <span className="success">✓ Yes</span>
+              ) : (
+                <span>⨯ No</span>
+              )}
+            </dd>
+
+            {wellKnown.nodeInfo.usage.users.total !== undefined && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Total Users:</dt>
+                <dd>{wellKnown.nodeInfo.usage.users.total.toLocaleString()}</dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.usage.users.activeMonth !== undefined && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Active Users (Month):</dt>
+                <dd>{wellKnown.nodeInfo.usage.users.activeMonth.toLocaleString()}</dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.usage.users.activeHalfyear !== undefined && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Active Users (6 Months):</dt>
+                <dd>{wellKnown.nodeInfo.usage.users.activeHalfyear.toLocaleString()}</dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.usage.localPosts !== undefined && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Local Posts:</dt>
+                <dd>{wellKnown.nodeInfo.usage.localPosts.toLocaleString()}</dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.usage.localComments !== undefined && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Local Comments:</dt>
+                <dd>{wellKnown.nodeInfo.usage.localComments.toLocaleString()}</dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.software.repository && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Repository:</dt>
+                <dd>
+                  <a href={wellKnown.nodeInfo.software.repository} target="_blank" rel="noopener noreferrer">
+                    {wellKnown.nodeInfo.software.repository}
+                  </a>
+                </dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.software.homepage && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Homepage:</dt>
+                <dd>
+                  <a href={wellKnown.nodeInfo.software.homepage} target="_blank" rel="noopener noreferrer">
+                    {wellKnown.nodeInfo.software.homepage}
+                  </a>
+                </dd>
+              </>
+            )}
+
+            {wellKnown.nodeInfo.services && (
+              <>
+                {wellKnown.nodeInfo.services.inbound && wellKnown.nodeInfo.services.inbound.length > 0 && (
+                  <>
+                    <dt style={{ fontWeight: 'bold' }}>Inbound Services:</dt>
+                    <dd>{wellKnown.nodeInfo.services.inbound.join(', ')}</dd>
+                  </>
+                )}
+                {wellKnown.nodeInfo.services.outbound && wellKnown.nodeInfo.services.outbound.length > 0 && (
+                  <>
+                    <dt style={{ fontWeight: 'bold' }}>Outbound Services:</dt>
+                    <dd>{wellKnown.nodeInfo.services.outbound.join(', ')}</dd>
+                  </>
+                )}
+              </>
+            )}
+          </dl>
+        </div>
+      )}
+
+      {/* robots.txt Information */}
+      {wellKnown.robotsTxt && (
+        <div style={{ marginBottom: '2rem' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>
+            Crawler Policies (robots.txt)
+            <SourceBadge source="instance-api" tooltip="From /robots.txt endpoint" />
+          </h4>
+
+          {wellKnown.robotsTxt.hasRestrictivePolicies && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '8px'
+            }}>
+              ⚠ <strong>Notice:</strong> This instance has restrictive crawler policies that may limit discoverability.
+            </div>
+          )}
+
+          <div style={{ marginBottom: '1rem' }}>
+            <strong>User-Agent Rules:</strong>
+            {wellKnown.robotsTxt.userAgents.length > 0 ? (
+              <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
+                {wellKnown.robotsTxt.userAgents.slice(0, 5).map((ua, idx) => (
+                  <li key={idx} style={{ marginBottom: '0.75rem' }}>
+                    <strong>{ua.agent}</strong>
+                    {ua.rules.disallow.length > 0 && (
+                      <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.25rem' }}>
+                        Disallow: {ua.rules.disallow.slice(0, 3).join(', ')}
+                        {ua.rules.disallow.length > 3 && ` (+${ua.rules.disallow.length - 3} more)`}
+                      </div>
+                    )}
+                    {ua.rules.allow.length > 0 && (
+                      <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.25rem' }}>
+                        Allow: {ua.rules.allow.slice(0, 3).join(', ')}
+                      </div>
+                    )}
+                    {ua.rules.crawlDelay && (
+                      <div style={{ fontSize: '0.9rem', color: '#888', marginTop: '0.25rem' }}>
+                        Crawl-delay: {ua.rules.crawlDelay}s
+                      </div>
+                    )}
+                  </li>
+                ))}
+                {wellKnown.robotsTxt.userAgents.length > 5 && (
+                  <li style={{ color: '#888', fontStyle: 'italic' }}>
+                    ... and {wellKnown.robotsTxt.userAgents.length - 5} more user-agent rules
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p style={{ color: '#888', marginTop: '0.5rem' }}>No specific user-agent rules defined.</p>
+            )}
+          </div>
+
+          {wellKnown.robotsTxt.sitemaps.length > 0 && (
+            <div>
+              <strong>Sitemaps:</strong>
+              <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
+                {wellKnown.robotsTxt.sitemaps.map((sitemap, idx) => (
+                  <li key={idx}>
+                    <a href={sitemap} target="_blank" rel="noopener noreferrer">
+                      {sitemap}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* security.txt Information */}
+      {wellKnown.securityTxt && (
+        <div style={{ marginBottom: '2rem' }}>
+          <h4 style={{ marginBottom: '0.75rem' }}>
+            Security Contact Information (RFC 9116)
+            <SourceBadge source="instance-api" tooltip="From .well-known/security.txt endpoint" />
+          </h4>
+
+          <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
+            {wellKnown.securityTxt.contact.length > 0 && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Contact:</dt>
+                <dd>
+                  {wellKnown.securityTxt.contact.map((contact, idx) => (
+                    <div key={idx}>
+                      {contact.startsWith('http') ? (
+                        <a href={contact} target="_blank" rel="noopener noreferrer">{contact}</a>
+                      ) : contact.startsWith('mailto:') ? (
+                        <a href={contact}>{contact.replace('mailto:', '')}</a>
+                      ) : (
+                        <span>{contact}</span>
+                      )}
+                    </div>
+                  ))}
+                </dd>
+              </>
+            )}
+
+            {wellKnown.securityTxt.expires && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Expires:</dt>
+                <dd>{wellKnown.securityTxt.expires}</dd>
+              </>
+            )}
+
+            {wellKnown.securityTxt.encryption && wellKnown.securityTxt.encryption.length > 0 && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Encryption:</dt>
+                <dd>
+                  {wellKnown.securityTxt.encryption.map((enc, idx) => (
+                    <div key={idx}>
+                      <a href={enc} target="_blank" rel="noopener noreferrer">{enc}</a>
+                    </div>
+                  ))}
+                </dd>
+              </>
+            )}
+
+            {wellKnown.securityTxt.policy && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Policy:</dt>
+                <dd>
+                  <a href={wellKnown.securityTxt.policy} target="_blank" rel="noopener noreferrer">
+                    {wellKnown.securityTxt.policy}
+                  </a>
+                </dd>
+              </>
+            )}
+
+            {wellKnown.securityTxt.acknowledgments && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Acknowledgments:</dt>
+                <dd>
+                  <a href={wellKnown.securityTxt.acknowledgments} target="_blank" rel="noopener noreferrer">
+                    {wellKnown.securityTxt.acknowledgments}
+                  </a>
+                </dd>
+              </>
+            )}
+
+            {wellKnown.securityTxt.preferredLanguages && wellKnown.securityTxt.preferredLanguages.length > 0 && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Languages:</dt>
+                <dd>{wellKnown.securityTxt.preferredLanguages.join(', ')}</dd>
+              </>
+            )}
+
+            {wellKnown.securityTxt.hiring && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Hiring:</dt>
+                <dd>
+                  <a href={wellKnown.securityTxt.hiring} target="_blank" rel="noopener noreferrer">
+                    {wellKnown.securityTxt.hiring}
+                  </a>
+                </dd>
+              </>
+            )}
+          </dl>
+        </div>
+      )}
+
+      {/* No Data Message */}
+      {!hasAnyData && wellKnown.errors.length === 0 && (
+        <div style={{
+          padding: '2rem',
+          textAlign: 'center',
+          color: '#888',
+          fontStyle: 'italic'
+        }}>
+          No metadata endpoints found (.well-known/nodeinfo, robots.txt, security.txt).
+        </div>
+      )}
+
+      {/* Errors */}
+      {wellKnown.errors.length > 0 && (
+        <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#888' }}>
+          <strong>Note:</strong> Some metadata endpoints could not be accessed.
+        </div>
+      )}
     </div>
   );
 }
