@@ -168,6 +168,11 @@ export class ReportGenerator {
     // Get blocked instances
     const blockedInstances = fedidbData.federation?.blocked || [];
 
+    // Extract NodeInfo software detection
+    const nodeInfoSoftware = 'nodeInfo' in wellKnown && wellKnown.nodeInfo?.software?.name
+      ? wellKnown.nodeInfo.software.name.toLowerCase()
+      : undefined;
+
     // Calculate safety score
     const safetyScore = this.calculateSafetyScore({
       hasInstanceData: !!instanceData.instance,
@@ -185,6 +190,7 @@ export class ReportGenerator {
       software,
       version,
       serverType: instanceData.serverType,
+      nodeInfoSoftware,
       infrastructure,
       wellKnown,
       moderationPolicies,

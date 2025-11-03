@@ -2,9 +2,10 @@
 export interface InstanceReport {
   domain: string;
   timestamp: Date;
-  software?: string;
+  software?: string; // Parsed from version string
   version?: string;
-  serverType?: string; // Detected server type (mastodon, pleroma, misskey, etc.)
+  serverType?: string; // Detected by Megalodon library
+  nodeInfoSoftware?: string; // Detected from NodeInfo
   infrastructure?: InfrastructureInfo;
   wellKnown?: WellKnownData; // .well-known metadata and robots.txt
   uptime?: number;
