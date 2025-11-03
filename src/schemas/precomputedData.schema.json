@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fedits.app/schemas/precomputed-data.json",
+  "title": "Pre-computed Instance Data",
+  "description": "Pre-computed analysis results for known instances",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of generation"
+    },
+    "statistics": {
+      "type": "object",
+      "description": "Federation-wide statistics for percentile calculations",
+      "properties": {
+        "peerCounts": {
+          "type": "object",
+          "description": "Percentiles for peer counts",
+          "properties": {
+            "p25": { "type": "number" },
+            "p50": { "type": "number" },
+            "p75": { "type": "number" },
+            "p90": { "type": "number" },
+            "p95": { "type": "number" }
+          }
+        },
+        "userCounts": {
+          "type": "object",
+          "description": "Percentiles for user counts",
+          "properties": {
+            "p25": { "type": "number" },
+            "p50": { "type": "number" },
+            "p75": { "type": "number" },
+            "p90": { "type": "number" },
+            "p95": { "type": "number" }
+          }
+        },
+        "instanceAge": {
+          "type": "object",
+          "description": "Percentiles for instance age in days",
+          "properties": {
+            "p25": { "type": "number" },
+            "p50": { "type": "number" },
+            "p75": { "type": "number" },
+            "p90": { "type": "number" }
+          }
+        }
+      }
+    },
+    "instances": {
+      "type": "object",
+      "description": "Pre-computed data per instance (keyed by domain)",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "format": "hostname"
+          },
+          "lastAnalyzed": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "externalSecurity": {
+            "type": "object",
+            "description": "External API check results",
+            "properties": {
+              "safeBrowsing": {
+                "type": "object",
+                "properties": {
+                  "clean": { "type": "boolean" },
+                  "threats": { "type": "array", "items": { "type": "string" } },
+                  "checkedAt": { "type": "string", "format": "date-time" }
+                }
+              },
+              "virusTotal": {
+                "type": "object",
+                "properties": {
+                  "positives": { "type": "number" },
+                  "total": { "type": "number" },
+                  "reputation": { "type": "number" },
+                  "checkedAt": { "type": "string", "format": "date-time" }
+                }
+              },
+              "sslLabs": {
+                "type": "object",
+                "properties": {
+                  "grade": { "type": "string" },
+                  "score": { "type": "number" },
+                  "checkedAt": { "type": "string", "format": "date-time" }
+                }
+              },
+              "certificateTransparency": {
+                "type": "object",
+                "properties": {
+                  "hasValidCert": { "type": "boolean" },
+                  "certCount": { "type": "number" },
+                  "suspiciousPattern": { "type": "boolean" },
+                  "checkedAt": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          },
+          "networkHealth": {
+            "type": "object",
+            "description": "Network health metrics",
+            "properties": {
+              "peerCount": { "type": "number" },
+              "peerPercentile": { "type": "number" },
+              "blockCount": { "type": "number" },
+              "blockRatio": { "type": "number" },
+              "blockedByCount": { "type": "number" }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata quality metrics",
+            "properties": {
+              "ageDays": { "type": "number" },
+              "userCount": { "type": "number" },
+              "hasPrivacyPolicy": { "type": "boolean" },
+              "hasTerms": { "type": "boolean" },
+              "registrationPolicy": { "type": "string" }
+            }
+          }
+        },
+        "required": ["domain", "lastAnalyzed"]
+      }
+    }
+  },
+  "required": ["version", "generatedAt"]
+}

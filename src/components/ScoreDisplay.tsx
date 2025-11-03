@@ -85,6 +85,102 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
         </div>
       )}
 
+      {/* Enhanced Moderation Analysis */}
+      {report.enhancedModerationAnalysis && (
+        <div style={{ textAlign: 'left', marginTop: '2rem' }}>
+          <h3 style={{ marginBottom: '1rem' }}>
+            Policy Analysis
+            {report.enhancedModerationAnalysis.confidence && (
+              <span style={{
+                fontSize: '0.8rem',
+                marginLeft: '0.5rem',
+                color: report.enhancedModerationAnalysis.confidence >= 70 ? 'var(--success-color)' :
+                       report.enhancedModerationAnalysis.confidence >= 50 ? 'var(--warning-color)' :
+                       'var(--danger-color)',
+                fontWeight: 'normal'
+              }}>
+                ({report.enhancedModerationAnalysis.confidence}% confidence)
+              </span>
+            )}
+          </h3>
+
+          {/* Languages Detected */}
+          {report.enhancedModerationAnalysis.detectedLanguages.length > 0 && (
+            <div style={{ marginBottom: '1rem', fontSize: '0.9rem', color: '#888' }}>
+              Detected languages: {report.enhancedModerationAnalysis.detectedLanguages.map(lang => {
+                const names: Record<string, string> = { en: 'English', de: 'German', fr: 'French', es: 'Spanish', ja: 'Japanese' };
+                return names[lang] || lang;
+              }).join(', ')}
+            </div>
+          )}
+
+          {/* Strengths */}
+          {report.enhancedModerationAnalysis.strengths.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <strong style={{ color: 'var(--success-color)' }}>✓ Strengths:</strong>
+              <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', color: 'var(--success-color)' }}>
+                {report.enhancedModerationAnalysis.strengths.map((strength, idx) => (
+                  <li key={idx}>{strength}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Weaknesses */}
+          {report.enhancedModerationAnalysis.weaknesses.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <strong style={{ color: 'var(--warning-color)' }}>⚠ Areas for Improvement:</strong>
+              <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', color: 'var(--warning-color)' }}>
+                {report.enhancedModerationAnalysis.weaknesses.map((weakness, idx) => (
+                  <li key={idx}>{weakness}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Suggestions */}
+          {report.enhancedModerationAnalysis.suggestions.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <strong>💡 Suggestions:</strong>
+              <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
+                {report.enhancedModerationAnalysis.suggestions.map((suggestion, idx) => (
+                  <li key={idx}>{suggestion}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Coverage Summary */}
+          <details style={{ marginTop: '1rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+              Coverage Details ({report.enhancedModerationAnalysis.categoriesCovered.length} categories)
+            </summary>
+            <div style={{ paddingLeft: '1rem', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+              {report.enhancedModerationAnalysis.categoriesCovered.length > 0 && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong>Covered:</strong> {report.enhancedModerationAnalysis.categoriesCovered.join(', ')}
+                </div>
+              )}
+              {report.enhancedModerationAnalysis.protectedClassesCovered.length > 0 && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong>Protected Classes:</strong> {report.enhancedModerationAnalysis.protectedClassesCovered.join(', ')}
+                </div>
+              )}
+              {report.enhancedModerationAnalysis.positiveIndicators.length > 0 && (
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong>Positive Indicators:</strong> {report.enhancedModerationAnalysis.positiveIndicators.join(', ')}
+                </div>
+              )}
+              {report.enhancedModerationAnalysis.missingCategories.length > 0 && (
+                <div style={{ marginBottom: '0.5rem', color: 'var(--warning-color)' }}>
+                  <strong>Missing:</strong> {report.enhancedModerationAnalysis.missingCategories.join(', ')}
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
+      )}
+
       {/* Score Calculation Formula */}
       <details style={{ textAlign: 'left', marginTop: '2rem' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '1rem' }}>

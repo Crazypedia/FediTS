@@ -1,4 +1,4 @@
-import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis } from '../types';
+import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis, EnhancedModerationAnalysis } from '../types';
 import { FediDBService } from './fedidb';
 import { InstanceAPIService } from './instance';
 import { CovenantService } from './covenant';
@@ -7,6 +7,7 @@ import { InfrastructureService } from './infrastructure';
 import { FediverseObserverService } from './fediverse-observer';
 import { WellKnownService } from './well-known';
 import { ModerationPolicyAnalyzer } from '../utils/moderationAnalyzer';
+import { EnhancedModerationAnalyzer } from '../utils/enhancedModerationAnalyzer';
 
 export class ReportGenerator {
   /**
@@ -147,8 +148,14 @@ export class ReportGenerator {
     }));
 
     // Analyze moderation policies for anti-hate speech provisions
+    // Keep legacy analyzer for backward compatibility
     const moderationAnalysis = moderationPolicies.length > 0
       ? ModerationPolicyAnalyzer.analyze(moderationPolicies)
+      : undefined;
+
+    // Enhanced analysis with contextual understanding and explainability
+    const enhancedModerationAnalysis = moderationPolicies.length > 0
+      ? EnhancedModerationAnalyzer.analyze(moderationPolicies)
       : undefined;
 
     // Get peer list (prefer instance API, fallback to FediDB)
@@ -173,11 +180,12 @@ export class ReportGenerator {
       ? wellKnown.nodeInfo.software.name.toLowerCase()
       : undefined;
 
-    // Calculate safety score
+    // Calculate safety score (use enhanced analysis if available, fallback to legacy)
     const safetyScore = this.calculateSafetyScore({
       hasInstanceData: !!instanceData.instance,
       hasModerationPolicies: moderationPolicies.length > 0,
       moderationAnalysis,
+      enhancedModerationAnalysis,
       hasPeers: peers.length > 0,
       blocklistMatches,
       covenantStatus,
@@ -195,6 +203,7 @@ export class ReportGenerator {
       wellKnown,
       moderationPolicies,
       moderationAnalysis,
+      enhancedModerationAnalysis,
       peers,
       peersTotalCount,
       blockedInstances,
@@ -225,6 +234,7 @@ export class ReportGenerator {
     hasInstanceData: boolean;
     hasModerationPolicies: boolean;
     moderationAnalysis?: ModerationAnalysis;
+    enhancedModerationAnalysis?: EnhancedModerationAnalysis;
     hasPeers: boolean;
     blocklistMatches: any[];
     covenantStatus: any;
@@ -241,9 +251,35 @@ export class ReportGenerator {
     }
 
     // Moderation quality score (0-37.5, with 25 as base)
-    // Uses granular analysis of anti-hate speech provisions
+    // Uses enhanced contextual analysis when available, falls back to legacy analyzer
     let moderationScore = 0;
-    if (data.hasModerationPolicies && data.moderationAnalysis) {
+
+    if (data.hasModerationPolicies && data.enhancedModerationAnalysis) {
+      // Use enhanced analysis (preferred)
+      moderationScore = data.enhancedModerationAnalysis.normalizedScore;
+
+      // Add flags based on enhanced analysis
+      if (data.enhancedModerationAnalysis.redFlags.length > 0) {
+        flags.push(`Policy concerns: ${data.enhancedModerationAnalysis.redFlags.join(', ')}`);
+      }
+
+      if (!data.enhancedModerationAnalysis.legacy.meetsMinimum) {
+        flags.push('Moderation policies lack sufficient anti-hate speech provisions');
+      } else if (data.enhancedModerationAnalysis.normalizedScore >= 35) {
+        flags.push('Excellent anti-hate speech moderation policies');
+      } else if (data.enhancedModerationAnalysis.normalizedScore >= 30) {
+        // Good score, no flag needed
+      } else if (data.enhancedModerationAnalysis.normalizedScore < 20) {
+        flags.push('Limited anti-hate speech coverage in moderation policies');
+      }
+
+      // Add detail about what's covered
+      if (data.enhancedModerationAnalysis.categoriesCovered.length > 0) {
+        const categories = data.enhancedModerationAnalysis.categoriesCovered.slice(0, 5).join(', ');
+        console.log(`Moderation addresses: ${categories}`);
+      }
+    } else if (data.hasModerationPolicies && data.moderationAnalysis) {
+      // Fallback to legacy analysis
       moderationScore = data.moderationAnalysis.score;
 
       if (!data.moderationAnalysis.meetsMinimum) {

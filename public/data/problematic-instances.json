@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-03T00:00:00Z",
+  "source": "FediTS Community Curation",
+  "instances": [
+    {
+      "domain": "example-problematic-instance.test",
+      "reputation": "problematic",
+      "reason": "Insufficient moderation, allows harassment",
+      "addedDate": "2025-01-01T00:00:00Z",
+      "evidence": [],
+      "tags": ["weak-moderation"],
+      "reviewDate": "2025-11-01T00:00:00Z"
+    }
+  ]
+}
