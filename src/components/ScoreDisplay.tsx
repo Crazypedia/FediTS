@@ -34,28 +34,36 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
       <div style={{ textAlign: 'left', marginTop: '2rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Breakdown</h3>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
-          {Object.entries(score.breakdown).map(([key, value]) => (
-            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ textTransform: 'capitalize' }}>{key}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{
-                  width: '200px',
-                  height: '8px',
-                  backgroundColor: 'var(--border-color)',
-                  borderRadius: '4px',
-                  overflow: 'hidden'
-                }}>
+          {Object.entries(score.breakdown).map(([key, value]) => {
+            // Moderation can score up to 37.5, others max at 25
+            const maxScore = key === 'moderation' ? 37.5 : 25;
+            const percentage = (value / maxScore) * 100;
+
+            return (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ textTransform: 'capitalize' }}>{key}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <div style={{
-                    width: `${value * 4}%`,
-                    height: '100%',
-                    backgroundColor: value > 15 ? 'var(--success-color)' : 'var(--warning-color)',
-                    transition: 'width 0.3s'
-                  }} />
+                    width: '200px',
+                    height: '8px',
+                    backgroundColor: 'var(--border-color)',
+                    borderRadius: '4px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${percentage}%`,
+                      height: '100%',
+                      backgroundColor: value > (maxScore * 0.6) ? 'var(--success-color)' : 'var(--warning-color)',
+                      transition: 'width 0.3s'
+                    }} />
+                  </div>
+                  <span style={{ minWidth: '4rem', textAlign: 'right' }}>
+                    {value}/{maxScore}
+                  </span>
                 </div>
-                <span style={{ minWidth: '3rem', textAlign: 'right' }}>{value}/25</span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -106,9 +114,9 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <strong style={{ color: 'var(--primary-color)' }}>Moderation Transparency (max 25 points)</strong>
+            <strong style={{ color: 'var(--primary-color)' }}>Moderation Quality (max 37.5 points - can exceed base 25)</strong>
             <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
-              <div>Current Score: <strong>{score.breakdown.moderation}</strong> / 25</div>
+              <div>Current Score: <strong>{score.breakdown.moderation}</strong> / 37.5</div>
               <div style={{ marginTop: '0.25rem', color: '#888' }}>
                 Source: {report.moderationPolicies && report.moderationPolicies.length > 0 ? (
                   <><SourceBadge source="instance-api" tooltip="Rules from instance API" /> ({report.moderationPolicies.length} rules)</>
@@ -116,11 +124,69 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
                   <>No public rules found</>
                 )}
               </div>
-              <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
-                {report.moderationPolicies && report.moderationPolicies.length > 0
-                  ? '✓ Has published rules = 25 points'
-                  : '✗ No public moderation policies = 0 points'}
-              </div>
+
+              {report.moderationAnalysis && (
+                <>
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.9rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
+                    <strong>Anti-Hate Speech Analysis (Mastodon Server Covenant Standards)</strong>
+                    <div style={{ marginTop: '0.5rem', paddingLeft: '0.5rem' }}>
+                      <div>• Keywords found: <strong>{report.moderationAnalysis.totalKeywords}</strong> {report.moderationAnalysis.meetsMinimum ? '✓' : '✗ (minimum 4 required)'}</div>
+                      {report.moderationAnalysis.categoriesAddressed.length > 0 && (
+                        <div style={{ marginTop: '0.25rem' }}>
+                          • Categories addressed: <strong>{report.moderationAnalysis.categoriesAddressed.join(', ')}</strong>
+                        </div>
+                      )}
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
+                        <details>
+                          <summary style={{ cursor: 'pointer' }}>Category Breakdown</summary>
+                          <div style={{ marginTop: '0.5rem', paddingLeft: '0.5rem' }}>
+                            {report.moderationAnalysis.details.racism > 0 && (
+                              <div>• Racism & White Supremacy: {report.moderationAnalysis.details.racism} keywords</div>
+                            )}
+                            {report.moderationAnalysis.details.sexism > 0 && (
+                              <div>• Sexism & Misogyny: {report.moderationAnalysis.details.sexism} keywords</div>
+                            )}
+                            {report.moderationAnalysis.details.homophobia > 0 && (
+                              <div>• Homophobia: {report.moderationAnalysis.details.homophobia} keywords</div>
+                            )}
+                            {report.moderationAnalysis.details.transphobia > 0 && (
+                              <div>• Transphobia: {report.moderationAnalysis.details.transphobia} keywords</div>
+                            )}
+                            {report.moderationAnalysis.details.antiSemitism > 0 && (
+                              <div>• Anti-Semitism: {report.moderationAnalysis.details.antiSemitism} keywords</div>
+                            )}
+                            {report.moderationAnalysis.details.generalHate > 0 && (
+                              <div>• General Hate Speech: {report.moderationAnalysis.details.generalHate} keywords</div>
+                            )}
+                          </div>
+                        </details>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                    Scoring:
+                    <ul style={{ paddingLeft: '1.5rem', marginTop: '0.25rem' }}>
+                      <li>Base score (4+ keywords): 25 points</li>
+                      <li>Keyword coverage bonus: +{Math.min(5, Math.max(0, (report.moderationAnalysis.totalKeywords - 4) * 0.5)).toFixed(1)} / 5 points</li>
+                      <li>Category diversity bonus: +{Math.min(5, report.moderationAnalysis.categoriesAddressed.length * 0.83).toFixed(1)} / 5 points</li>
+                      <li>Critical coverage bonus: up to +2.5 points</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              {!report.moderationAnalysis && report.moderationPolicies && report.moderationPolicies.length > 0 && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                  ⚠ Policies present but not analyzed for anti-hate provisions
+                </div>
+              )}
+
+              {!report.moderationPolicies || report.moderationPolicies.length === 0 ? (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                  ✗ No public moderation policies = 0 points
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -168,10 +234,16 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
           <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
             <strong>Final Calculation:</strong>
             <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
-              <div>Uptime: {score.breakdown.uptime}</div>
-              <div>+ Moderation: {score.breakdown.moderation}</div>
-              <div>+ Federation: {score.breakdown.federation}</div>
-              <div>+ Trust: {score.breakdown.trust}</div>
+              <div>Uptime: {score.breakdown.uptime} / 25</div>
+              <div>+ Moderation: {score.breakdown.moderation} / 37.5</div>
+              <div>+ Federation: {score.breakdown.federation} / 25</div>
+              <div>+ Trust: {score.breakdown.trust} / 25</div>
+              <div style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: '#888' }}>
+                = Raw Total: {(score.breakdown.uptime + score.breakdown.moderation + score.breakdown.federation + score.breakdown.trust).toFixed(1)} / 112.5
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#888' }}>
+                Normalized to 100 scale: {Math.round(((score.breakdown.uptime + score.breakdown.moderation + score.breakdown.federation + score.breakdown.trust) / 112.5) * 100)}
+              </div>
               {report.errors.length > 0 && (
                 <div>- Errors: {Math.min(report.errors.length * 2, 10)} (2 points per error, max -10)</div>
               )}
