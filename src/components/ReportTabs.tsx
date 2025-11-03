@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { InstanceReport } from '../types';
+import SourceBadge from './SourceBadge';
 
 interface ReportTabsProps {
   report: InstanceReport;
@@ -75,14 +76,20 @@ function OverviewTab({ report }: { report: InstanceReport }) {
         {report.software && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Software:</dt>
-            <dd style={{ textTransform: 'capitalize' }}>{report.software}</dd>
+            <dd style={{ textTransform: 'capitalize' }}>
+              {report.software}
+              <SourceBadge source="instance-api" tooltip="Detected from instance API version string" />
+            </dd>
           </>
         )}
 
         {report.version && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Version:</dt>
-            <dd>{report.version}</dd>
+            <dd>
+              {report.version}
+              <SourceBadge source="instance-api" tooltip="From instance API metadata" />
+            </dd>
           </>
         )}
 
@@ -92,9 +99,15 @@ function OverviewTab({ report }: { report: InstanceReport }) {
         <dt style={{ fontWeight: 'bold' }}>Server Covenant:</dt>
         <dd>
           {report.serverCovenant?.listed ? (
-            <span className="success">✓ Listed</span>
+            <>
+              <span className="success">✓ Listed</span>
+              <SourceBadge source="covenant" tooltip="Verified against Mastodon Server Covenant API" />
+            </>
           ) : (
-            <span>Not listed</span>
+            <>
+              <span>Not listed</span>
+              <SourceBadge source="covenant" />
+            </>
           )}
         </dd>
       </dl>
@@ -126,19 +139,26 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
         <dt style={{ fontWeight: 'bold' }}>Detected Software:</dt>
         <dd style={{ textTransform: 'capitalize' }}>
           {report.software || 'Unknown'}
+          {report.software && <SourceBadge source="instance-api" tooltip="Parsed from version string" />}
         </dd>
 
         {report.version && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Version:</dt>
-            <dd>{report.version}</dd>
+            <dd>
+              {report.version}
+              <SourceBadge source="instance-api" />
+            </dd>
           </>
         )}
 
         {report.serverType && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Server Type (Megalodon):</dt>
-            <dd style={{ textTransform: 'capitalize' }}>{report.serverType}</dd>
+            <dd style={{ textTransform: 'capitalize' }}>
+              {report.serverType}
+              <SourceBadge source="megalodon" tooltip="Detected using Megalodon library" />
+            </dd>
           </>
         )}
       </dl>
@@ -166,14 +186,20 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
             {report.infrastructure.hostingProvider && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Hosting Provider:</dt>
-                <dd>{report.infrastructure.hostingProvider}</dd>
+                <dd>
+                  {report.infrastructure.hostingProvider}
+                  <SourceBadge source="infrastructure" tooltip="Detected from ASN/ISP data via ip-api.com" />
+                </dd>
               </>
             )}
 
             {report.infrastructure.cloudProvider && !report.infrastructure.hostingProvider && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Cloud Platform:</dt>
-                <dd>{report.infrastructure.cloudProvider}</dd>
+                <dd>
+                  {report.infrastructure.cloudProvider}
+                  <SourceBadge source="infrastructure" tooltip="Detected from HTTP headers or ASN data" />
+                </dd>
               </>
             )}
 
@@ -184,6 +210,7 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
                   {report.infrastructure.countryCode && getCountryFlag(report.infrastructure.countryCode)}{' '}
                   {report.infrastructure.city && `${report.infrastructure.city}, `}
                   {report.infrastructure.country}
+                  <SourceBadge source="infrastructure" tooltip="Geolocation from ip-api.com" />
                 </dd>
               </>
             )}
@@ -191,7 +218,10 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
             {report.infrastructure.ip && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>IP Address:</dt>
-                <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{report.infrastructure.ip}</dd>
+                <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>
+                  {report.infrastructure.ip}
+                  <SourceBadge source="infrastructure" tooltip="Resolved via Google DNS-over-HTTPS" />
+                </dd>
               </>
             )}
 
@@ -201,6 +231,7 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
                 <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>
                   {report.infrastructure.asn}
                   {report.infrastructure.asnOrg && ` (${report.infrastructure.asnOrg})`}
+                  <SourceBadge source="infrastructure" tooltip="Autonomous System Number from ip-api.com" />
                 </dd>
               </>
             )}
@@ -208,14 +239,20 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
             {report.infrastructure.cdn && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>CDN:</dt>
-                <dd>{report.infrastructure.cdn}</dd>
+                <dd>
+                  {report.infrastructure.cdn}
+                  <SourceBadge source="infrastructure" tooltip="Detected from HTTP headers and DNS CNAME records" />
+                </dd>
               </>
             )}
 
             {report.infrastructure.server && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Server Software:</dt>
-                <dd>{report.infrastructure.server}</dd>
+                <dd>
+                  {report.infrastructure.server}
+                  <SourceBadge source="infrastructure" tooltip="From HTTP Server header" />
+                </dd>
               </>
             )}
           </dl>
@@ -254,7 +291,12 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
 function ModerationTab({ report }: { report: InstanceReport }) {
   return (
     <div>
-      <h3 style={{ marginBottom: '1rem' }}>Moderation Policies</h3>
+      <h3 style={{ marginBottom: '1rem' }}>
+        Moderation Policies
+        {report.moderationPolicies && report.moderationPolicies.length > 0 && (
+          <SourceBadge source="instance-api" tooltip="From instance API /rules endpoint" />
+        )}
+      </h3>
 
       {report.moderationPolicies && report.moderationPolicies.length > 0 ? (
         <ol style={{ paddingLeft: '1.5rem', lineHeight: '1.8' }}>
@@ -270,7 +312,10 @@ function ModerationTab({ report }: { report: InstanceReport }) {
 
       {report.blockedInstances && report.blockedInstances.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
-          <h4 style={{ marginBottom: '0.5rem' }}>Blocked Instances</h4>
+          <h4 style={{ marginBottom: '0.5rem' }}>
+            Blocked Instances
+            <SourceBadge source="fedidb" tooltip="From FediDB federation data" />
+          </h4>
           <p style={{ color: '#888', fontSize: '0.9rem' }}>
             This instance blocks {report.blockedInstances.length} other instances.
           </p>
@@ -293,6 +338,9 @@ function FederationTab({ report }: { report: InstanceReport }) {
       <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
         <div>
           <strong>Connected Peers:</strong> {totalPeerCount.toLocaleString()}
+          {peerCount > 0 && (
+            <SourceBadge source="instance-api" tooltip="From instance API /peers endpoint or FediDB fallback" />
+          )}
           {peerCount === 0 && (
             <span style={{ color: '#888', marginLeft: '0.5rem' }}>
               (Peer list may be disabled)
@@ -301,6 +349,9 @@ function FederationTab({ report }: { report: InstanceReport }) {
         </div>
         <div>
           <strong>Blocked Instances:</strong> {blockedCount}
+          {blockedCount > 0 && (
+            <SourceBadge source="fedidb" tooltip="From FediDB federation data" />
+          )}
         </div>
       </div>
 
@@ -370,7 +421,10 @@ function TrustTab({ report }: { report: InstanceReport }) {
       </div>
 
       <div>
-        <h4 style={{ marginBottom: '0.5rem' }}>Blocklist Status</h4>
+        <h4 style={{ marginBottom: '0.5rem' }}>
+          Blocklist Status
+          <SourceBadge source="blocklist" tooltip="Checked against GardenFence and IFTAS DNI blocklists" />
+        </h4>
         {hasBlocklistMatches ? (
           <div>
             <p className="warning" style={{ marginBottom: '1rem' }}>
