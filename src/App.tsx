@@ -22,12 +22,12 @@ function App() {
     setCacheAge(null);
 
     try {
-      // Validate domain
+      // Validate domain (lenient - only checks format)
       const validation = await validateDomain(domain);
 
       if (!validation.valid) {
         setError({
-          message: 'Invalid domain or unreachable instance',
+          message: 'Invalid domain format',
           details: validation.errors
         });
         setIsLoading(false);
@@ -35,6 +35,11 @@ function App() {
       }
 
       const normalizedDomain = validation.normalized;
+
+      // Log warnings but don't stop execution
+      if (validation.warnings.length > 0) {
+        console.log('Domain validation warnings:', validation.warnings);
+      }
 
       // Update URL path (not hash)
       const basePath = '/FediTS/'; // Must match vite.config.ts base
