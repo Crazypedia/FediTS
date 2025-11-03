@@ -9,6 +9,7 @@ export interface InstanceReport {
   wellKnown?: WellKnownData; // .well-known metadata and robots.txt
   uptime?: number;
   moderationPolicies?: ModerationPolicy[];
+  moderationAnalysis?: ModerationAnalysis; // Analysis of moderation policies against anti-hate standards
   peers?: string[];
   peersTotalCount?: number; // Total number of peers before truncation
   blockedInstances?: string[];
@@ -18,6 +19,22 @@ export interface InstanceReport {
   errors: ErrorInfo[];
   instanceStatus?: InstanceStatus; // Whether instance is reachable
   isHistoricalData?: boolean; // True if data is from archives/historical sources
+}
+
+export interface ModerationAnalysis {
+  totalKeywords: number;
+  categoriesAddressed: string[];
+  keywordsFound: string[];
+  score: number; // 0-37.5 (1.5x base score of 25)
+  meetsMinimum: boolean; // Has at least 4 keywords
+  details: {
+    racism: number;
+    sexism: number;
+    homophobia: number;
+    transphobia: number;
+    antiSemitism: number;
+    generalHate: number;
+  };
 }
 
 export interface WellKnownData {

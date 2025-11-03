@@ -1,4 +1,4 @@
-import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus } from '../types';
+import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis } from '../types';
 import { FediDBService } from './fedidb';
 import { InstanceAPIService } from './instance';
 import { CovenantService } from './covenant';
@@ -6,6 +6,7 @@ import { BlocklistService } from './blocklists';
 import { InfrastructureService } from './infrastructure';
 import { FediverseObserverService } from './fediverse-observer';
 import { WellKnownService } from './well-known';
+import { ModerationPolicyAnalyzer } from '../utils/moderationAnalyzer';
 
 export class ReportGenerator {
   /**
@@ -145,6 +146,11 @@ export class ReportGenerator {
       text: rule.text
     }));
 
+    // Analyze moderation policies for anti-hate speech provisions
+    const moderationAnalysis = moderationPolicies.length > 0
+      ? ModerationPolicyAnalyzer.analyze(moderationPolicies)
+      : undefined;
+
     // Get peer list (prefer instance API, fallback to FediDB)
     const allPeers = instanceData.peers.length > 0
       ? instanceData.peers
@@ -166,6 +172,7 @@ export class ReportGenerator {
     const safetyScore = this.calculateSafetyScore({
       hasInstanceData: !!instanceData.instance,
       hasModerationPolicies: moderationPolicies.length > 0,
+      moderationAnalysis,
       hasPeers: peers.length > 0,
       blocklistMatches,
       covenantStatus,
@@ -181,6 +188,7 @@ export class ReportGenerator {
       infrastructure,
       wellKnown,
       moderationPolicies,
+      moderationAnalysis,
       peers,
       peersTotalCount,
       blockedInstances,
@@ -196,10 +204,18 @@ export class ReportGenerator {
   /**
    * Calculate safety score based on collected data
    * Score is 0-100, with breakdown for each category
+   *
+   * New scoring system:
+   * - Uptime: 0-25 (25% of score)
+   * - Moderation: 0-37.5 (25% base, can exceed to 37.5 for exceptional policies)
+   * - Federation: 0-25 (25% of score)
+   * - Trust: 0-25 (25% of score)
+   * Total possible: 112.5, normalized to 0-100 scale
    */
   private static calculateSafetyScore(data: {
     hasInstanceData: boolean;
     hasModerationPolicies: boolean;
+    moderationAnalysis?: ModerationAnalysis;
     hasPeers: boolean;
     blocklistMatches: any[];
     covenantStatus: any;
@@ -215,10 +231,31 @@ export class ReportGenerator {
       flags.push('Instance API unreachable');
     }
 
-    // Moderation transparency score (0-25)
+    // Moderation quality score (0-37.5, with 25 as base)
+    // Uses granular analysis of anti-hate speech provisions
     let moderationScore = 0;
-    if (data.hasModerationPolicies) {
-      moderationScore = 25; // Has published rules
+    if (data.hasModerationPolicies && data.moderationAnalysis) {
+      moderationScore = data.moderationAnalysis.score;
+
+      if (!data.moderationAnalysis.meetsMinimum) {
+        flags.push('Moderation policies lack sufficient anti-hate speech provisions');
+      } else if (data.moderationAnalysis.score >= 35) {
+        flags.push('Excellent anti-hate speech moderation policies');
+      } else if (data.moderationAnalysis.score >= 30) {
+        // Good score, no flag needed
+      } else if (data.moderationAnalysis.score < 20) {
+        flags.push('Limited anti-hate speech coverage in moderation policies');
+      }
+
+      // Add detail about what's covered
+      if (data.moderationAnalysis.categoriesAddressed.length > 0) {
+        const categories = data.moderationAnalysis.categoriesAddressed.join(', ');
+        console.log(`Moderation addresses: ${categories}`);
+      }
+    } else if (data.hasModerationPolicies) {
+      // Has policies but no analysis (shouldn't happen, but fallback)
+      moderationScore = 15;
+      flags.push('Moderation policies present but not analyzed');
     } else {
       flags.push('No public moderation policies found');
     }
@@ -229,7 +266,6 @@ export class ReportGenerator {
       federationScore = 25; // Peer list is public
     } else {
       flags.push('Peer list not publicly available');
-      moderationScore = 15; // Still give partial credit
     }
 
     // Trust score (0-25)
@@ -254,12 +290,16 @@ export class ReportGenerator {
       trustScore = Math.min(trustScore + 5, 25); // Add 5 points bonus, cap at 25
     }
 
+    // Calculate raw total (max 112.5)
+    const rawTotal = uptimeScore + moderationScore + federationScore + trustScore;
+
     // Penalize for errors (but not too harshly)
     const errorPenalty = Math.min(data.errors.length * 2, 10);
-    const overall = Math.max(
-      0,
-      uptimeScore + moderationScore + federationScore + trustScore - errorPenalty
-    );
+
+    // Normalize to 0-100 scale and apply error penalty
+    // 112.5 is the max possible, scale to 100
+    const normalizedScore = (rawTotal / 112.5) * 100;
+    const overall = Math.max(0, Math.round(normalizedScore - errorPenalty));
 
     return {
       overall,
