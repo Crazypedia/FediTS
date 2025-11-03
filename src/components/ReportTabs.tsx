@@ -282,6 +282,8 @@ function ModerationTab({ report }: { report: InstanceReport }) {
 
 function FederationTab({ report }: { report: InstanceReport }) {
   const peerCount = report.peers?.length || 0;
+  const totalPeerCount = report.peersTotalCount || peerCount;
+  const isTruncated = totalPeerCount > peerCount;
   const blockedCount = report.blockedInstances?.length || 0;
 
   return (
@@ -290,7 +292,7 @@ function FederationTab({ report }: { report: InstanceReport }) {
 
       <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
         <div>
-          <strong>Connected Peers:</strong> {peerCount}
+          <strong>Connected Peers:</strong> {totalPeerCount.toLocaleString()}
           {peerCount === 0 && (
             <span style={{ color: '#888', marginLeft: '0.5rem' }}>
               (Peer list may be disabled)
@@ -303,27 +305,41 @@ function FederationTab({ report }: { report: InstanceReport }) {
       </div>
 
       {peerCount > 0 && (
-        <details>
-          <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
-            Show peer list ({peerCount} instances)
-          </summary>
-          <div style={{
-            maxHeight: '300px',
-            overflow: 'auto',
-            marginTop: '0.5rem',
-            padding: '1rem',
-            backgroundColor: 'var(--bg-primary)',
-            borderRadius: '4px'
-          }}>
-            <ul style={{ columns: '2', columnGap: '2rem' }}>
-              {report.peers?.map((peer, idx) => (
-                <li key={idx} style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                  {peer}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </details>
+        <>
+          {isTruncated && (
+            <div style={{
+              padding: '0.75rem',
+              marginBottom: '1rem',
+              backgroundColor: 'rgba(249, 115, 22, 0.1)',
+              border: '1px solid rgba(249, 115, 22, 0.3)',
+              borderRadius: '4px',
+              fontSize: '0.9rem'
+            }}>
+              ℹ️ Showing first {peerCount.toLocaleString()} of {totalPeerCount.toLocaleString()} peers to prevent performance issues
+            </div>
+          )}
+          <details>
+            <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
+              Show peer list ({peerCount.toLocaleString()} {isTruncated ? 'shown' : 'instances'})
+            </summary>
+            <div style={{
+              maxHeight: '300px',
+              overflow: 'auto',
+              marginTop: '0.5rem',
+              padding: '1rem',
+              backgroundColor: 'var(--bg-primary)',
+              borderRadius: '4px'
+            }}>
+              <ul style={{ columns: '2', columnGap: '2rem' }}>
+                {report.peers?.map((peer, idx) => (
+                  <li key={idx} style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                    {peer}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
+        </>
       )}
     </div>
   );

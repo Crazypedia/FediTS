@@ -81,9 +81,18 @@ export class ReportGenerator {
     }));
 
     // Get peer list (prefer instance API, fallback to FediDB)
-    const peers = instanceData.peers.length > 0
+    const allPeers = instanceData.peers.length > 0
       ? instanceData.peers
       : (fedidbData.federation?.peers || []);
+
+    // Limit peer list to prevent UI freezing (max 1000 peers)
+    const MAX_PEERS = 1000;
+    const peersTotalCount = allPeers.length;
+    const peers = allPeers.slice(0, MAX_PEERS);
+
+    if (peersTotalCount > MAX_PEERS) {
+      console.warn(`Peer list truncated from ${peersTotalCount} to ${MAX_PEERS} peers`);
+    }
 
     // Get blocked instances
     const blockedInstances = fedidbData.federation?.blocked || [];
@@ -107,6 +116,7 @@ export class ReportGenerator {
       infrastructure,
       moderationPolicies,
       peers,
+      peersTotalCount,
       blockedInstances,
       externalBlocklists: blocklistMatches,
       serverCovenant: covenantStatus,

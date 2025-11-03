@@ -73,11 +73,12 @@ export class InstanceAPIService {
    */
   private static async getInstanceInfoFallback(domain: string): Promise<MastodonInstance | null> {
     try {
+      // Try Mastodon/Pleroma API first
       const response = await fetch(`https://${domain}/api/v1/instance`, {
         headers: {
           'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(20000)
       });
 
       if (!response.ok) {
@@ -87,8 +88,42 @@ export class InstanceAPIService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Instance API fallback error:', error);
-      return null;
+      console.error('Mastodon API fallback error:', error);
+
+      // Try Misskey/Sharkey API as final fallback
+      try {
+        console.log('Attempting Misskey API fallback...');
+        const misskeyResponse = await fetch(`https://${domain}/api/meta`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ detail: true }),
+          signal: AbortSignal.timeout(20000)
+        });
+
+        if (!misskeyResponse.ok) {
+          throw new Error(`Misskey API error: ${misskeyResponse.status}`);
+        }
+
+        const misskeyData = await misskeyResponse.json();
+
+        // Convert Misskey response to Mastodon-compatible format
+        return {
+          uri: misskeyData.uri || domain,
+          title: misskeyData.name,
+          description: misskeyData.description,
+          version: misskeyData.version,
+          stats: {
+            user_count: misskeyData.stats?.originalUsersCount,
+            status_count: misskeyData.stats?.originalNotesCount
+          }
+        };
+      } catch (misskeyError) {
+        console.error('Misskey API fallback also failed:', misskeyError);
+        return null;
+      }
     }
   }
 
@@ -109,7 +144,7 @@ export class InstanceAPIService {
         headers: {
           'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(20000)
       });
 
       if (!response.ok) {
@@ -145,7 +180,7 @@ export class InstanceAPIService {
         headers: {
           'Accept': 'application/json'
         },
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(20000)
       });
 
       if (!response.ok) {
