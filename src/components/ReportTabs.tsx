@@ -211,28 +211,40 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
       <h3 style={{ marginBottom: '1rem' }}>Software Detection</h3>
 
       <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem', marginBottom: '2rem' }}>
-        <dt style={{ fontWeight: 'bold' }}>Detected Software:</dt>
-        <dd style={{ textTransform: 'capitalize' }}>
-          {report.software || 'Unknown'}
-          {report.software && <SourceBadge source="instance-api" tooltip="Parsed from version string" />}
-        </dd>
-
         {report.version && (
           <>
-            <dt style={{ fontWeight: 'bold' }}>Version:</dt>
-            <dd>
+            <dt style={{ fontWeight: 'bold' }}>Version String:</dt>
+            <dd style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>
               {report.version}
-              <SourceBadge source="instance-api" />
+              <SourceBadge source="instance-api" tooltip="Raw version string from instance API" />
             </dd>
           </>
         )}
 
+        <dt style={{ fontWeight: 'bold' }}>Parsed Software:</dt>
+        <dd style={{ textTransform: 'capitalize' }}>
+          {report.software || 'Unknown'}
+          {report.software && report.software !== 'other' && (
+            <SourceBadge source="instance-api" tooltip="Parsed from version string" />
+          )}
+          {report.software === 'other' && report.version && (
+            <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
+              (could not classify, showing raw version above)
+            </span>
+          )}
+        </dd>
+
         {report.serverType && (
           <>
-            <dt style={{ fontWeight: 'bold' }}>Server Type (Megalodon):</dt>
+            <dt style={{ fontWeight: 'bold' }}>Megalodon Detection:</dt>
             <dd style={{ textTransform: 'capitalize' }}>
               {report.serverType}
-              <SourceBadge source="megalodon" tooltip="Detected using Megalodon library" />
+              <SourceBadge source="megalodon" tooltip="Detected using Megalodon library server type detector" />
+              {report.software && report.software !== 'unknown' && report.serverType !== report.software && (
+                <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
+                  (differs from parsed: {report.software})
+                </span>
+              )}
             </dd>
           </>
         )}
@@ -240,7 +252,7 @@ function TechnicalTab({ report }: { report: InstanceReport }) {
 
       <h3 style={{ marginBottom: '1rem' }}>Infrastructure & Hosting</h3>
 
-      {report.infrastructure && (report.infrastructure.hostingProvider || report.infrastructure.cloudProvider || report.infrastructure.country) ? (
+      {report.infrastructure && (report.infrastructure.hostingProvider || report.infrastructure.cloudProvider || report.infrastructure.country || report.infrastructure.ip || report.infrastructure.asn || report.infrastructure.cdn || report.infrastructure.server) ? (
         <>
           {/* Summary badges */}
           {report.infrastructure.isCloudflare && (
@@ -634,35 +646,35 @@ function MetadataTab({ report }: { report: InstanceReport }) {
               </>
             )}
 
-            {wellKnown.nodeInfo.usage?.users?.total !== undefined && (
+            {wellKnown.nodeInfo.usage?.users?.total !== undefined && wellKnown.nodeInfo.usage.users.total !== null && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Total Users:</dt>
                 <dd>{wellKnown.nodeInfo.usage.users.total.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage?.users?.activeMonth !== undefined && (
+            {wellKnown.nodeInfo.usage?.users?.activeMonth !== undefined && wellKnown.nodeInfo.usage.users.activeMonth !== null && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Active Users (Month):</dt>
                 <dd>{wellKnown.nodeInfo.usage.users.activeMonth.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage?.users?.activeHalfyear !== undefined && (
+            {wellKnown.nodeInfo.usage?.users?.activeHalfyear !== undefined && wellKnown.nodeInfo.usage.users.activeHalfyear !== null && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Active Users (6 Months):</dt>
                 <dd>{wellKnown.nodeInfo.usage.users.activeHalfyear.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage?.localPosts !== undefined && (
+            {wellKnown.nodeInfo.usage?.localPosts !== undefined && wellKnown.nodeInfo.usage.localPosts !== null && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Local Posts:</dt>
                 <dd>{wellKnown.nodeInfo.usage.localPosts.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage?.localComments !== undefined && (
+            {wellKnown.nodeInfo.usage?.localComments !== undefined && wellKnown.nodeInfo.usage.localComments !== null && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Local Comments:</dt>
                 <dd>{wellKnown.nodeInfo.usage.localComments.toLocaleString()}</dd>
