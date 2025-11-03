@@ -35,9 +35,11 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
         <h3 style={{ marginBottom: '1rem' }}>Breakdown</h3>
         <div style={{ display: 'grid', gap: '0.75rem' }}>
           {Object.entries(score.breakdown).map(([key, value]) => {
-            // Moderation can score up to 37.5, others max at 25
-            const maxScore = key === 'moderation' ? 37.5 : 25;
-            const percentage = (value / maxScore) * 100;
+            // All categories max at 25 for the bar
+            const maxScore = 25;
+            const baseValue = Math.min(value, 25);
+            const bonusValue = key === 'moderation' ? Math.max(0, value - 25) : 0;
+            const percentage = (baseValue / maxScore) * 100;
 
             return (
               <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -57,8 +59,13 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
                       transition: 'width 0.3s'
                     }} />
                   </div>
-                  <span style={{ minWidth: '4rem', textAlign: 'right' }}>
-                    {value}/{maxScore}
+                  <span style={{ minWidth: '5rem', textAlign: 'right' }}>
+                    {value}/25
+                    {bonusValue > 0 && (
+                      <span style={{ color: 'var(--success-color)', fontSize: '0.85rem', marginLeft: '0.25rem' }}>
+                        (+{bonusValue.toFixed(1)} bonus)
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -114,9 +121,15 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <strong style={{ color: 'var(--primary-color)' }}>Moderation Quality (max 37.5 points - can exceed base 25)</strong>
+            <strong style={{ color: 'var(--primary-color)' }}>Moderation Quality (max 25 points toward score, up to 37.5 tracked)</strong>
             <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
-              <div>Current Score: <strong>{score.breakdown.moderation}</strong> / 37.5</div>
+              <div>Current Score: <strong>{score.breakdown.moderation}</strong> / 25
+                {score.breakdown.moderation > 25 && (
+                  <span style={{ color: 'var(--success-color)', marginLeft: '0.5rem' }}>
+                    (+{(score.breakdown.moderation - 25).toFixed(1)} bonus points - exceptional!)
+                  </span>
+                )}
+              </div>
               <div style={{ marginTop: '0.25rem', color: '#888' }}>
                 Source: {report.moderationPolicies && report.moderationPolicies.length > 0 ? (
                   <><SourceBadge source="instance-api" tooltip="Rules from instance API" /> ({report.moderationPolicies.length} rules)</>
@@ -235,14 +248,17 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
             <strong>Final Calculation:</strong>
             <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
               <div>Uptime: {score.breakdown.uptime} / 25</div>
-              <div>+ Moderation: {score.breakdown.moderation} / 37.5</div>
+              <div>+ Moderation: {Math.min(score.breakdown.moderation, 25)} / 25
+                {score.breakdown.moderation > 25 && (
+                  <span style={{ fontSize: '0.85rem', color: '#888', marginLeft: '0.5rem' }}>
+                    (scored {score.breakdown.moderation.toFixed(1)}, capped at 25 for total)
+                  </span>
+                )}
+              </div>
               <div>+ Federation: {score.breakdown.federation} / 25</div>
               <div>+ Trust: {score.breakdown.trust} / 25</div>
               <div style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: '#888' }}>
-                = Raw Total: {(score.breakdown.uptime + score.breakdown.moderation + score.breakdown.federation + score.breakdown.trust).toFixed(1)} / 112.5
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#888' }}>
-                Normalized to 100 scale: {Math.round(((score.breakdown.uptime + score.breakdown.moderation + score.breakdown.federation + score.breakdown.trust) / 112.5) * 100)}
+                = Subtotal: {(score.breakdown.uptime + Math.min(score.breakdown.moderation, 25) + score.breakdown.federation + score.breakdown.trust).toFixed(1)} / 100
               </div>
               {report.errors.length > 0 && (
                 <div>- Errors: {Math.min(report.errors.length * 2, 10)} (2 points per error, max -10)</div>
@@ -250,6 +266,11 @@ export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
               <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
                 <strong>= Total: {score.overall} / 100</strong>
               </div>
+              {score.breakdown.moderation > 25 && (
+                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--success-color)' }}>
+                  Note: Moderation scored {score.breakdown.moderation.toFixed(1)}/37.5 (bonus points don't inflate total, but recognize exceptional policies)
+                </div>
+              )}
             </div>
           </div>
 
