@@ -6,6 +6,7 @@ export interface InstanceReport {
   version?: string;
   serverType?: string; // Detected server type (mastodon, pleroma, misskey, etc.)
   infrastructure?: InfrastructureInfo;
+  wellKnown?: WellKnownData; // .well-known metadata and robots.txt
   uptime?: number;
   moderationPolicies?: ModerationPolicy[];
   peers?: string[];
@@ -17,6 +18,67 @@ export interface InstanceReport {
   errors: ErrorInfo[];
   instanceStatus?: InstanceStatus; // Whether instance is reachable
   isHistoricalData?: boolean; // True if data is from archives/historical sources
+}
+
+export interface WellKnownData {
+  nodeInfo?: NodeInfo;
+  robotsTxt?: RobotsTxt;
+  securityTxt?: SecurityTxt;
+  supportsWebfinger: boolean;
+  supportsActivityPub: boolean;
+  hasHostMeta: boolean;
+  errors: string[];
+}
+
+export interface NodeInfo {
+  version: string;
+  software: {
+    name: string;
+    version: string;
+    repository?: string;
+    homepage?: string;
+  };
+  protocols: string[];
+  services?: {
+    inbound?: string[];
+    outbound?: string[];
+  };
+  openRegistrations: boolean;
+  usage: {
+    users: {
+      total?: number;
+      activeMonth?: number;
+      activeHalfyear?: number;
+    };
+    localPosts?: number;
+    localComments?: number;
+  };
+  metadata?: Record<string, any>;
+}
+
+export interface RobotsTxt {
+  raw: string;
+  userAgents: {
+    agent: string;
+    rules: {
+      disallow: string[];
+      allow: string[];
+      crawlDelay?: number;
+    };
+  }[];
+  sitemaps: string[];
+  hasRestrictivePolicies: boolean;
+}
+
+export interface SecurityTxt {
+  contact: string[];
+  expires?: string;
+  encryption?: string[];
+  acknowledgments?: string;
+  preferredLanguages?: string[];
+  canonical?: string;
+  policy?: string;
+  hiring?: string;
 }
 
 export interface InfrastructureInfo {
