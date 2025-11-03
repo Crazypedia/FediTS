@@ -15,6 +15,8 @@ export interface InstanceReport {
   serverCovenant?: CovenantStatus;
   safetyScore: SafetyScore;
   errors: ErrorInfo[];
+  instanceStatus?: InstanceStatus; // Whether instance is reachable
+  isHistoricalData?: boolean; // True if data is from archives/historical sources
 }
 
 export interface InfrastructureInfo {
@@ -64,6 +66,13 @@ export interface ErrorInfo {
   source: string;
   message: string;
   timestamp: Date;
+}
+
+export interface InstanceStatus {
+  reachable: boolean; // Can we connect to the instance directly?
+  checkedAt: Date;
+  lastSeenOnline?: Date; // From Fediverse Observer if available
+  statusSource: 'direct' | 'fediverse-observer' | 'fedidb' | 'unknown';
 }
 
 // API Response types
