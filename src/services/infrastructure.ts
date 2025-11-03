@@ -48,7 +48,7 @@ export class InfrastructureService {
   private static async getIPInfo(ip: string): Promise<Partial<InfrastructureInfo>> {
     try {
       // Using ip-api.com - free tier, no key needed, 45 requests/minute
-      const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,isp,org,as,hosting`, {
+      const response = await fetch(`https://ip-api.com/json/${ip}?fields=status,country,countryCode,city,isp,org,as,hosting`, {
         signal: AbortSignal.timeout(5000)
       });
 

@@ -9,6 +9,7 @@ export interface InstanceReport {
   uptime?: number;
   moderationPolicies?: ModerationPolicy[];
   peers?: string[];
+  peersTotalCount?: number; // Total number of peers before truncation
   blockedInstances?: string[];
   externalBlocklists?: BlocklistMatch[];
   serverCovenant?: CovenantStatus;
