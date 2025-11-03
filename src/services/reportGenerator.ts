@@ -1,9 +1,10 @@
-import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy } from '../types';
+import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus } from '../types';
 import { FediDBService } from './fedidb';
 import { InstanceAPIService } from './instance';
 import { CovenantService } from './covenant';
 import { BlocklistService } from './blocklists';
 import { InfrastructureService } from './infrastructure';
+import { FediverseObserverService } from './fediverse-observer';
 
 export class ReportGenerator {
   /**
@@ -15,10 +16,18 @@ export class ReportGenerator {
 
     console.log(`Generating report for ${domain}...`);
 
+    // First, try to determine if instance is reachable
+    let instanceStatus: InstanceStatus = {
+      reachable: false,
+      checkedAt: new Date(),
+      statusSource: 'unknown'
+    };
+
     // Fetch data from all sources in parallel
     const [
       fedidbData,
       instanceData,
+      observerData,
       covenantStatus,
       blocklistMatches,
       infrastructure
@@ -38,6 +47,14 @@ export class ReportGenerator {
           timestamp: new Date()
         });
         return { instance: null, rules: [], peers: [], software: undefined, serverType: undefined };
+      }),
+      FediverseObserverService.getInstance(domain).catch(err => {
+        errors.push({
+          source: 'Fediverse Observer',
+          message: err.message,
+          timestamp: new Date()
+        });
+        return null;
       }),
       CovenantService.checkCovenant(domain).catch(err => {
         errors.push({
@@ -65,14 +82,47 @@ export class ReportGenerator {
       })
     ]);
 
-    // Determine software version
+    // Determine instance status
+    if (instanceData.instance) {
+      // Successfully connected to instance
+      instanceStatus = {
+        reachable: true,
+        checkedAt: new Date(),
+        statusSource: 'direct'
+      };
+    } else if (observerData?.lastSeen) {
+      // Check Fediverse Observer data
+      const lastSeen = new Date(observerData.lastSeen);
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      instanceStatus = {
+        reachable: lastSeen > hourAgo,
+        checkedAt: new Date(),
+        lastSeenOnline: lastSeen,
+        statusSource: 'fediverse-observer'
+      };
+    } else if (fedidbData.instance) {
+      // Has FediDB data but no direct connection
+      instanceStatus = {
+        reachable: false,
+        checkedAt: new Date(),
+        statusSource: 'fedidb'
+      };
+    }
+
+    // Determine software version (prefer fresh data, fallback to historical)
     const software = instanceData.software ||
+                    observerData?.software ||
                     fedidbData.instance?.software ||
                     'unknown';
 
     const version = instanceData.instance?.version ||
+                   observerData?.version ||
                    fedidbData.instance?.version ||
                    undefined;
+
+    // Determine if data is historical (instance unreachable but we have archive data)
+    const isHistoricalData = !instanceStatus.reachable && (!!fedidbData.instance || !!observerData);
 
     // Compile moderation policies
     const moderationPolicies: ModerationPolicy[] = instanceData.rules.map(rule => ({
@@ -121,7 +171,9 @@ export class ReportGenerator {
       externalBlocklists: blocklistMatches,
       serverCovenant: covenantStatus,
       safetyScore,
-      errors
+      errors,
+      instanceStatus,
+      isHistoricalData
     };
   }
 

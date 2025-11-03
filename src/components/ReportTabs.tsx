@@ -28,8 +28,66 @@ export default function ReportTabs({ report }: ReportTabsProps) {
     borderBottom: activeTab === tab ? 'none' : '1px solid var(--border-color)'
   });
 
+  // Format last seen date
+  const formatLastSeen = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return `${Math.floor(diffDays / 365)} years ago`;
+  };
+
   return (
     <div className="card">
+      {/* Instance Status Banner */}
+      {report.instanceStatus && !report.instanceStatus.reachable && (
+        <div style={{
+          padding: '1rem',
+          marginBottom: '1.5rem',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--danger-color)' }}>
+                Instance Unreachable
+              </h4>
+              <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
+                Unable to connect to this instance directly.
+                {report.isHistoricalData ? ' Showing historical/archived data from external sources.' : ' No historical data available.'}
+              </p>
+              {report.instanceStatus.lastSeenOnline && (
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#888' }}>
+                  Last seen online: {formatLastSeen(report.instanceStatus.lastSeenOnline)}
+                  {' '}(via {report.instanceStatus.statusSource})
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Historical Data Warning */}
+      {report.isHistoricalData && report.instanceStatus?.reachable === false && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          marginBottom: '1.5rem',
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: '8px',
+          fontSize: '0.9rem'
+        }}>
+          📚 <strong>Historical Data:</strong> This information may be outdated. Data sourced from FediDB and Fediverse Observer archives.
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '-1px', flexWrap: 'wrap' }}>
         <button style={tabStyle('overview')} onClick={() => setActiveTab('overview')}>
           Overview
@@ -72,6 +130,19 @@ function OverviewTab({ report }: { report: InstanceReport }) {
       <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
         <dt style={{ fontWeight: 'bold' }}>Domain:</dt>
         <dd>{report.domain}</dd>
+
+        {report.instanceStatus && (
+          <>
+            <dt style={{ fontWeight: 'bold' }}>Status:</dt>
+            <dd>
+              {report.instanceStatus.reachable ? (
+                <span className="success">✓ Online</span>
+              ) : (
+                <span style={{ color: 'var(--danger-color)' }}>⚠ Offline/Unreachable</span>
+              )}
+            </dd>
+          </>
+        )}
 
         {report.software && (
           <>

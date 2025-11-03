@@ -45,6 +45,13 @@ export class CacheService {
         serverCovenant: data.report.serverCovenant ? {
           ...data.report.serverCovenant,
           checkedAt: new Date(data.report.serverCovenant.checkedAt)
+        } : undefined,
+        instanceStatus: data.report.instanceStatus ? {
+          ...data.report.instanceStatus,
+          checkedAt: new Date(data.report.instanceStatus.checkedAt),
+          lastSeenOnline: data.report.instanceStatus.lastSeenOnline
+            ? new Date(data.report.instanceStatus.lastSeenOnline)
+            : undefined
         } : undefined
       };
     } catch (error) {
