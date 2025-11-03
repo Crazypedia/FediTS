@@ -10,7 +10,8 @@ export interface InstanceReport {
   wellKnown?: WellKnownData; // .well-known metadata and robots.txt
   uptime?: number;
   moderationPolicies?: ModerationPolicy[];
-  moderationAnalysis?: ModerationAnalysis; // Analysis of moderation policies against anti-hate standards
+  moderationAnalysis?: ModerationAnalysis; // Legacy analysis (kept for backward compatibility)
+  enhancedModerationAnalysis?: EnhancedModerationAnalysis; // Enhanced contextual analysis with explainability
   peers?: string[];
   peersTotalCount?: number; // Total number of peers before truncation
   blockedInstances?: string[];
@@ -36,6 +37,49 @@ export interface ModerationAnalysis {
     antiSemitism: number;
     generalHate: number;
   };
+}
+
+export interface EnhancedModerationAnalysis {
+  // Overall scoring
+  totalScore: number; // Weighted score (0-100+ with bonuses)
+  normalizedScore: number; // 0-37.5 for compatibility with existing system
+  confidence: number; // 0-100, based on rule length and specificity
+
+  // Coverage metrics
+  categoriesCovered: string[];
+  protectedClassesCovered: string[];
+  positiveIndicators: string[];
+  redFlags: string[];
+
+  // Pattern matching results
+  matchedPatterns: MatchedPattern[];
+  missingCategories: string[];
+
+  // Language detection
+  detectedLanguages: string[];
+
+  // Explainability
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+
+  // Backward compatibility
+  legacy: {
+    totalKeywords: number;
+    categoriesAddressed: string[];
+    meetsMinimum: boolean;
+  };
+}
+
+export interface MatchedPattern {
+  category: string;
+  subcategory: string;
+  weight: number;
+  matchedText: string;
+  context: string; // Surrounding text for context
+  isNegated: boolean;
+  language: string;
+  patternUsed: string;
 }
 
 export interface WellKnownData {
