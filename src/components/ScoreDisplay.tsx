@@ -1,11 +1,13 @@
-import type { SafetyScore } from '../types';
+import type { SafetyScore, InstanceReport } from '../types';
 import { ReportGenerator } from '../services/reportGenerator';
+import SourceBadge from './SourceBadge';
 
 interface ScoreDisplayProps {
   score: SafetyScore;
+  report: InstanceReport;
 }
 
-export default function ScoreDisplay({ score }: ScoreDisplayProps) {
+export default function ScoreDisplay({ score, report }: ScoreDisplayProps) {
   const summary = ReportGenerator.getScoreSummary(score.overall);
 
   return (
@@ -67,6 +69,123 @@ export default function ScoreDisplay({ score }: ScoreDisplayProps) {
           </ul>
         </div>
       )}
+
+      {/* Score Calculation Formula */}
+      <details style={{ textAlign: 'left', marginTop: '2rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '1rem' }}>
+          Score Calculation Formula
+        </summary>
+        <div style={{
+          padding: '1rem',
+          backgroundColor: 'var(--bg-primary)',
+          borderRadius: '4px',
+          fontSize: '0.9rem',
+          fontFamily: 'monospace'
+        }}>
+          <p style={{ marginBottom: '1rem', fontFamily: 'sans-serif' }}>
+            The safety score (0-100) is calculated from four weighted components:
+          </p>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <strong style={{ color: 'var(--primary-color)' }}>Uptime/Responsiveness (max 25 points)</strong>
+            <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+              <div>Current Score: <strong>{score.breakdown.uptime}</strong> / 25</div>
+              <div style={{ marginTop: '0.25rem', color: '#888' }}>
+                Source: {report.instanceStatus?.reachable ? (
+                  <>Direct connection <SourceBadge source="instance-api" tooltip="Successfully connected to instance" /></>
+                ) : (
+                  <>Instance offline <SourceBadge source="fediverse-observer" tooltip="Checked via Fediverse Observer" /></>
+                )}
+              </div>
+              <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                {report.instanceStatus?.reachable
+                  ? '✓ Instance API is reachable = 25 points'
+                  : '✗ Instance API unreachable = 0 points'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <strong style={{ color: 'var(--primary-color)' }}>Moderation Transparency (max 25 points)</strong>
+            <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+              <div>Current Score: <strong>{score.breakdown.moderation}</strong> / 25</div>
+              <div style={{ marginTop: '0.25rem', color: '#888' }}>
+                Source: {report.moderationPolicies && report.moderationPolicies.length > 0 ? (
+                  <><SourceBadge source="instance-api" tooltip="Rules from instance API" /> ({report.moderationPolicies.length} rules)</>
+                ) : (
+                  <>No public rules found</>
+                )}
+              </div>
+              <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                {report.moderationPolicies && report.moderationPolicies.length > 0
+                  ? '✓ Has published rules = 25 points'
+                  : '✗ No public moderation policies = 0 points'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <strong style={{ color: 'var(--primary-color)' }}>Federation Visibility (max 25 points)</strong>
+            <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+              <div>Current Score: <strong>{score.breakdown.federation}</strong> / 25</div>
+              <div style={{ marginTop: '0.25rem', color: '#888' }}>
+                Source: {report.peers && report.peers.length > 0 ? (
+                  <><SourceBadge source="instance-api" tooltip="Peer list from instance API or FediDB" /> ({report.peersTotalCount || report.peers.length} peers)</>
+                ) : (
+                  <>Peer list not available</>
+                )}
+              </div>
+              <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                {report.peers && report.peers.length > 0
+                  ? '✓ Peer list is public = 25 points (or 15 if limited)'
+                  : '✗ Peer list not publicly available = 15 points partial credit'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <strong style={{ color: 'var(--primary-color)' }}>Trust & Reputation (max 25 points)</strong>
+            <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+              <div>Current Score: <strong>{score.breakdown.trust}</strong> / 25</div>
+              <div style={{ marginTop: '0.25rem', color: '#888' }}>
+                Sources: <SourceBadge source="blocklist" tooltip="GardenFence, IFTAS DNI" /> <SourceBadge source="covenant" tooltip="Mastodon Server Covenant API" />
+              </div>
+              <div style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
+                {report.externalBlocklists && report.externalBlocklists.length > 0 ? (
+                  <>⚠ Found on {report.externalBlocklists.length} blocklist(s) = Reduced score</>
+                ) : (
+                  <>✓ Not on blocklists = 25 points</>
+                )}
+              </div>
+              {report.serverCovenant?.listed && (
+                <div style={{ marginTop: '0.25rem', fontSize: '0.85rem', color: 'var(--success-color)' }}>
+                  ✓ Server Covenant member = +5 bonus points
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <strong>Final Calculation:</strong>
+            <div style={{ marginTop: '0.5rem', paddingLeft: '1rem' }}>
+              <div>Uptime: {score.breakdown.uptime}</div>
+              <div>+ Moderation: {score.breakdown.moderation}</div>
+              <div>+ Federation: {score.breakdown.federation}</div>
+              <div>+ Trust: {score.breakdown.trust}</div>
+              {report.errors.length > 0 && (
+                <div>- Errors: {Math.min(report.errors.length * 2, 10)} (2 points per error, max -10)</div>
+              )}
+              <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+                <strong>= Total: {score.overall} / 100</strong>
+              </div>
+            </div>
+          </div>
+
+          <p style={{ marginTop: '1.5rem', fontFamily: 'sans-serif', fontSize: '0.85rem', color: '#888' }}>
+            Note: Scores are calculated based on publicly available information. A lower score doesn't necessarily mean an instance is unsafe, just that it has less public transparency.
+          </p>
+        </div>
+      </details>
     </div>
   );
 }
