@@ -207,10 +207,13 @@ export class ReportGenerator {
    *
    * New scoring system:
    * - Uptime: 0-25 (25% of score)
-   * - Moderation: 0-37.5 (25% base, can exceed to 37.5 for exceptional policies)
+   * - Moderation: 0-37.5 (tracked for display, but only 0-25 counts toward overall score)
    * - Federation: 0-25 (25% of score)
    * - Trust: 0-25 (25% of score)
-   * Total possible: 112.5, normalized to 0-100 scale
+   * Total possible: 100 (25+25+25+25)
+   *
+   * Note: Moderation can exceed 25 (up to 37.5) to recognize exceptional policies,
+   * but the overall score is capped at 100 to maintain scale consistency.
    */
   private static calculateSafetyScore(data: {
     hasInstanceData: boolean;
@@ -290,22 +293,23 @@ export class ReportGenerator {
       trustScore = Math.min(trustScore + 5, 25); // Add 5 points bonus, cap at 25
     }
 
-    // Calculate raw total (max 112.5)
-    const rawTotal = uptimeScore + moderationScore + federationScore + trustScore;
+    // Calculate overall score (0-100)
+    // Note: Moderation can score up to 37.5, but only 25 counts toward overall score
+    // The extra points (25-37.5) are bonus points shown in breakdown but don't inflate overall score
+    const moderationContribution = Math.min(moderationScore, 25);
+    const rawTotal = uptimeScore + moderationContribution + federationScore + trustScore;
 
     // Penalize for errors (but not too harshly)
     const errorPenalty = Math.min(data.errors.length * 2, 10);
 
-    // Normalize to 0-100 scale and apply error penalty
-    // 112.5 is the max possible, scale to 100
-    const normalizedScore = (rawTotal / 112.5) * 100;
-    const overall = Math.max(0, Math.round(normalizedScore - errorPenalty));
+    // Overall score out of 100 (25+25+25+25 = 100)
+    const overall = Math.max(0, Math.round(rawTotal - errorPenalty));
 
     return {
       overall,
       breakdown: {
         uptime: uptimeScore,
-        moderation: moderationScore,
+        moderation: moderationScore, // Store full score for display (can be 0-37.5)
         federation: federationScore,
         trust: trustScore
       },

@@ -603,12 +603,16 @@ function MetadataTab({ report }: { report: InstanceReport }) {
             <SourceBadge source="instance-api" tooltip="From .well-known/nodeinfo endpoint" />
           </h4>
           <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
-            <dt style={{ fontWeight: 'bold' }}>Software:</dt>
-            <dd style={{ textTransform: 'capitalize' }}>
-              {wellKnown.nodeInfo.software.name} {wellKnown.nodeInfo.software.version}
-            </dd>
+            {wellKnown.nodeInfo.software && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Software:</dt>
+                <dd style={{ textTransform: 'capitalize' }}>
+                  {wellKnown.nodeInfo.software.name} {wellKnown.nodeInfo.software.version}
+                </dd>
+              </>
+            )}
 
-            {wellKnown.nodeInfo.protocols.length > 0 && (
+            {wellKnown.nodeInfo.protocols && wellKnown.nodeInfo.protocols.length > 0 && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Protocols:</dt>
                 <dd style={{ textTransform: 'capitalize' }}>
@@ -617,51 +621,55 @@ function MetadataTab({ report }: { report: InstanceReport }) {
               </>
             )}
 
-            <dt style={{ fontWeight: 'bold' }}>Open Registrations:</dt>
-            <dd>
-              {wellKnown.nodeInfo.openRegistrations ? (
-                <span className="success">✓ Yes</span>
-              ) : (
-                <span>⨯ No</span>
-              )}
-            </dd>
+            {wellKnown.nodeInfo.openRegistrations !== undefined && (
+              <>
+                <dt style={{ fontWeight: 'bold' }}>Open Registrations:</dt>
+                <dd>
+                  {wellKnown.nodeInfo.openRegistrations ? (
+                    <span className="success">✓ Yes</span>
+                  ) : (
+                    <span>⨯ No</span>
+                  )}
+                </dd>
+              </>
+            )}
 
-            {wellKnown.nodeInfo.usage.users.total !== undefined && (
+            {wellKnown.nodeInfo.usage?.users?.total !== undefined && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Total Users:</dt>
                 <dd>{wellKnown.nodeInfo.usage.users.total.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage.users.activeMonth !== undefined && (
+            {wellKnown.nodeInfo.usage?.users?.activeMonth !== undefined && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Active Users (Month):</dt>
                 <dd>{wellKnown.nodeInfo.usage.users.activeMonth.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage.users.activeHalfyear !== undefined && (
+            {wellKnown.nodeInfo.usage?.users?.activeHalfyear !== undefined && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Active Users (6 Months):</dt>
                 <dd>{wellKnown.nodeInfo.usage.users.activeHalfyear.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage.localPosts !== undefined && (
+            {wellKnown.nodeInfo.usage?.localPosts !== undefined && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Local Posts:</dt>
                 <dd>{wellKnown.nodeInfo.usage.localPosts.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.usage.localComments !== undefined && (
+            {wellKnown.nodeInfo.usage?.localComments !== undefined && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Local Comments:</dt>
                 <dd>{wellKnown.nodeInfo.usage.localComments.toLocaleString()}</dd>
               </>
             )}
 
-            {wellKnown.nodeInfo.software.repository && (
+            {wellKnown.nodeInfo.software?.repository && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Repository:</dt>
                 <dd>
@@ -672,7 +680,7 @@ function MetadataTab({ report }: { report: InstanceReport }) {
               </>
             )}
 
-            {wellKnown.nodeInfo.software.homepage && (
+            {wellKnown.nodeInfo.software?.homepage && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Homepage:</dt>
                 <dd>
@@ -759,7 +767,7 @@ function MetadataTab({ report }: { report: InstanceReport }) {
             )}
           </div>
 
-          {wellKnown.robotsTxt.sitemaps.length > 0 && (
+          {wellKnown.robotsTxt.sitemaps && wellKnown.robotsTxt.sitemaps.length > 0 && (
             <div>
               <strong>Sitemaps:</strong>
               <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
@@ -785,7 +793,7 @@ function MetadataTab({ report }: { report: InstanceReport }) {
           </h4>
 
           <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
-            {wellKnown.securityTxt.contact.length > 0 && (
+            {wellKnown.securityTxt.contact && wellKnown.securityTxt.contact.length > 0 && (
               <>
                 <dt style={{ fontWeight: 'bold' }}>Contact:</dt>
                 <dd>
@@ -868,7 +876,7 @@ function MetadataTab({ report }: { report: InstanceReport }) {
       )}
 
       {/* No Data Message */}
-      {!hasAnyData && wellKnown.errors.length === 0 && (
+      {!hasAnyData && (!wellKnown.errors || wellKnown.errors.length === 0) && (
         <div style={{
           padding: '2rem',
           textAlign: 'center',
@@ -880,7 +888,7 @@ function MetadataTab({ report }: { report: InstanceReport }) {
       )}
 
       {/* Errors */}
-      {wellKnown.errors.length > 0 && (
+      {wellKnown.errors && wellKnown.errors.length > 0 && (
         <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#888' }}>
           <strong>Note:</strong> Some metadata endpoints could not be accessed.
         </div>
