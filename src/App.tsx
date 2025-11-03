@@ -179,7 +179,7 @@ function App() {
             </div>
           )}
 
-          <ScoreDisplay score={report.safetyScore} />
+          <ScoreDisplay score={report.safetyScore} report={report} />
           <ReportTabs report={report} />
 
           <div style={{ marginTop: '2rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>

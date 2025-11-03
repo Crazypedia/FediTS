@@ -255,88 +255,98 @@ export class InfrastructureService {
 
   /**
    * Detect infrastructure information from HTTP headers and DNS
+   * Note: HTTP header detection may fail due to CORS when running from static hosting
    */
   static async detectInfrastructure(domain: string): Promise<InfrastructureInfo> {
     const info: InfrastructureInfo = {};
 
+    // Try DNS-based detection FIRST (more reliable, no CORS issues)
+    try {
+      const cdnViaDNS = await this.detectCDNviaDNS(domain);
+      if (cdnViaDNS) {
+        info.cdn = cdnViaDNS;
+        console.log(`CDN detected via DNS CNAME: ${cdnViaDNS}`);
+        // Mark Cloudflare specifically
+        if (cdnViaDNS === 'Cloudflare') {
+          info.isCloudflare = true;
+          info.cloudProvider = 'Behind Cloudflare';
+        }
+      }
+    } catch (error) {
+      console.error('Error detecting CDN via DNS:', error);
+    }
+
+    // Try HTTP header detection (may be blocked by CORS)
     try {
       // Fetch with HEAD request to get headers without body
       const response = await fetch(`https://${domain}/`, {
         method: 'HEAD',
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(10000),
+        mode: 'cors', // Explicitly request CORS
+        cache: 'no-cache'
       });
 
-      // Extract relevant headers
+      // Extract relevant headers (only if CORS allows it)
       const headers: Record<string, string> = {};
       response.headers.forEach((value, key) => {
         headers[key.toLowerCase()] = value;
       });
 
-      info.headers = headers;
+      // Only set headers if we got any (CORS allowed)
+      if (Object.keys(headers).length > 0) {
+        info.headers = headers;
 
-      // Detect server software
-      if (headers['server']) {
-        info.server = headers['server'];
-      }
-
-      // Use enhanced CDN detection from HTTP headers
-      const cdnFromHeaders = this.detectCDNFromHeaders(headers);
-      if (cdnFromHeaders) {
-        info.cdn = cdnFromHeaders;
-        // Mark Cloudflare specifically
-        if (cdnFromHeaders === 'Cloudflare') {
-          info.isCloudflare = true;
+        // Detect server software
+        if (headers['server']) {
+          info.server = headers['server'];
         }
-      }
 
-      // Detect cloud provider from headers
-      if (headers['x-amzn-requestid'] || headers['x-amz-id-2']) {
-        info.cloudProvider = 'Amazon Web Services (AWS)';
-      } else if (headers['x-ms-request-id'] || headers['x-azure-ref']) {
-        info.cloudProvider = 'Microsoft Azure';
-      } else if (headers['x-goog-generation'] || headers['x-guploader-uploadid']) {
-        info.cloudProvider = 'Google Cloud Platform';
-      } else if (headers['server']?.includes('cloudflare')) {
-        info.cloudProvider = 'Cloudflare Pages/Workers';
-      } else if (headers['x-vercel-id'] || headers['x-vercel-cache']) {
-        info.cloudProvider = 'Vercel';
-      } else if (headers['x-nf-request-id']) {
-        info.cloudProvider = 'Netlify';
-      } else if (headers['x-do-app-origin']) {
-        info.cloudProvider = 'DigitalOcean App Platform';
-      } else if (headers['x-render-id']) {
-        info.cloudProvider = 'Render';
-      } else if (headers['x-fly-request-id']) {
-        info.cloudProvider = 'Fly.io';
-      }
+        // Use enhanced CDN detection from HTTP headers (if not already detected via DNS)
+        if (!info.cdn) {
+          const cdnFromHeaders = this.detectCDNFromHeaders(headers);
+          if (cdnFromHeaders) {
+            info.cdn = cdnFromHeaders;
+            if (cdnFromHeaders === 'Cloudflare') {
+              info.isCloudflare = true;
+            }
+          }
+        }
 
-      // If Cloudflare is detected, note it in cloud provider too
-      if (info.isCloudflare && !info.cloudProvider) {
-        info.cloudProvider = 'Behind Cloudflare (origin unknown)';
+        // Detect cloud provider from headers
+        if (headers['x-amzn-requestid'] || headers['x-amz-id-2']) {
+          info.cloudProvider = 'Amazon Web Services (AWS)';
+        } else if (headers['x-ms-request-id'] || headers['x-azure-ref']) {
+          info.cloudProvider = 'Microsoft Azure';
+        } else if (headers['x-goog-generation'] || headers['x-guploader-uploadid']) {
+          info.cloudProvider = 'Google Cloud Platform';
+        } else if (headers['server']?.includes('cloudflare')) {
+          info.cloudProvider = info.cloudProvider || 'Cloudflare Pages/Workers';
+        } else if (headers['x-vercel-id'] || headers['x-vercel-cache']) {
+          info.cloudProvider = 'Vercel';
+        } else if (headers['x-nf-request-id']) {
+          info.cloudProvider = 'Netlify';
+        } else if (headers['x-do-app-origin']) {
+          info.cloudProvider = 'DigitalOcean App Platform';
+        } else if (headers['x-render-id']) {
+          info.cloudProvider = 'Render';
+        } else if (headers['x-fly-request-id']) {
+          info.cloudProvider = 'Fly.io';
+        }
+
+        // If Cloudflare is detected, note it in cloud provider too
+        if (info.isCloudflare && !info.cloudProvider) {
+          info.cloudProvider = 'Behind Cloudflare (origin unknown)';
+        }
+      } else {
+        // No headers received - likely CORS blocked
+        console.warn(`CORS prevented header access for ${domain}`);
       }
 
     } catch (error) {
-      console.error('Error detecting infrastructure from headers:', error);
+      console.warn(`CORS or network error detecting infrastructure from headers for ${domain}:`, error);
     }
 
-    // If CDN not detected via headers, try DNS CNAME detection
-    if (!info.cdn) {
-      try {
-        const cdnViaDNS = await this.detectCDNviaDNS(domain);
-        if (cdnViaDNS) {
-          info.cdn = cdnViaDNS;
-          console.log(`CDN detected via DNS CNAME: ${cdnViaDNS}`);
-          // Mark Cloudflare specifically
-          if (cdnViaDNS === 'Cloudflare') {
-            info.isCloudflare = true;
-          }
-        }
-      } catch (error) {
-        console.error('Error detecting CDN via DNS:', error);
-      }
-    }
-
-    // Resolve IP and get geolocation/hosting info
+    // Resolve IP and get geolocation/hosting info (DNS-based, no CORS issues)
     try {
       const ip = await this.resolveIP(domain);
       if (ip) {
