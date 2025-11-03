@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>FediTS - Redirecting...</title>
+    <script>
+      // GitHub Pages SPA redirect trick
+      // This script takes the current pathname and redirects to the root index.html
+      // with the path preserved, allowing client-side routing to work
+
+      (function() {
+        var pathSegmentsToKeep = 1; // For /FediTS/ we keep 1 segment
+
+        var l = window.location;
+
+        // Redirect to index.html with the path as a query parameter
+        // that will be restored by the index.html script
+        l.replace(
+          l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+          l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>

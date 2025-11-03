@@ -68,15 +68,15 @@ npm run preview
 
 ### URL-Based Scanning
 
-You can link directly to a specific instance scan by adding the domain to the URL hash:
+You can link directly to a specific instance scan by adding the domain to the URL path:
 
 ```
-https://crazypedia.github.io/FediTS/#mastodon.social
-https://crazypedia.github.io/FediTS/#fosstodon.org
-https://crazypedia.github.io/FediTS/#misskey.io
+https://crazypedia.github.io/FediTS/mastodon.social
+https://crazypedia.github.io/FediTS/fosstodon.org
+https://crazypedia.github.io/FediTS/misskey.io
 ```
 
-This allows you to share direct links to instance reports or bookmark frequently-checked instances.
+This allows you to share direct links to instance reports or bookmark frequently-checked instances. The URLs use clean path-based routing (no `#` hash symbols).
 
 ### Caching & Rescanning
 

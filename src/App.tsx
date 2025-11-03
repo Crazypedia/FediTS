@@ -36,8 +36,14 @@ function App() {
 
       const normalizedDomain = validation.normalized;
 
-      // Update URL hash
-      window.location.hash = encodeURIComponent(normalizedDomain);
+      // Update URL path (not hash)
+      const basePath = '/FediTS/'; // Must match vite.config.ts base
+      const newPath = `${basePath}${normalizedDomain}`;
+
+      // Only update URL if it's different from current path
+      if (window.location.pathname !== newPath) {
+        window.history.pushState(null, '', newPath);
+      }
 
       // Check cache first (unless bypass requested)
       if (!bypassCache) {
@@ -71,28 +77,34 @@ function App() {
     }
   }, []);
 
-  // Handle URL hash changes to auto-load domains
+  // Handle URL path changes to auto-load domains
   useEffect(() => {
-    const loadFromHash = () => {
-      const hash = window.location.hash.slice(1); // Remove the # prefix
-      if (hash) {
-        const domain = decodeURIComponent(hash);
-        console.log(`Loading domain from URL hash: ${domain}`);
-        handleAnalyze(domain, false); // Don't bypass cache on initial load
+    const loadFromPath = () => {
+      // Get path after base URL
+      // For GitHub Pages: /FediTS/mastodon.social -> mastodon.social
+      const path = window.location.pathname;
+      const basePath = '/FediTS/'; // Must match vite.config.ts base
+
+      if (path.startsWith(basePath)) {
+        const domain = path.slice(basePath.length);
+        if (domain && domain !== '') {
+          console.log(`Loading domain from URL path: ${domain}`);
+          handleAnalyze(domain, false); // Don't bypass cache on initial load
+        }
       }
     };
 
     // Load on mount
-    loadFromHash();
+    loadFromPath();
 
-    // Listen for hash changes
-    window.addEventListener('hashchange', loadFromHash);
+    // Listen for popstate (browser back/forward)
+    window.addEventListener('popstate', loadFromPath);
 
     // Cleanup old caches on mount
     CacheService.cleanupOldCaches();
 
     return () => {
-      window.removeEventListener('hashchange', loadFromHash);
+      window.removeEventListener('popstate', loadFromPath);
     };
   }, [handleAnalyze]);
 
