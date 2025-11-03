@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { InstanceReport } from './types';
 import { validateDomain } from './utils/domainUtils';
 import { ReportGenerator } from './services/reportGenerator';
+import { CacheService } from './services/cache';
 import DomainInput from './components/DomainInput';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorDisplay from './components/ErrorDisplay';
@@ -12,11 +13,13 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<{ message: string; details?: string[] } | null>(null);
   const [report, setReport] = useState<InstanceReport | null>(null);
+  const [cacheAge, setCacheAge] = useState<string | null>(null);
 
-  const handleAnalyze = async (domain: string) => {
+  const handleAnalyze = useCallback(async (domain: string, bypassCache: boolean = false) => {
     setIsLoading(true);
     setError(null);
     setReport(null);
+    setCacheAge(null);
 
     try {
       // Validate domain
@@ -31,9 +34,32 @@ function App() {
         return;
       }
 
-      // Generate report
-      const generatedReport = await ReportGenerator.generateReport(validation.normalized);
+      const normalizedDomain = validation.normalized;
+
+      // Update URL hash
+      window.location.hash = encodeURIComponent(normalizedDomain);
+
+      // Check cache first (unless bypass requested)
+      if (!bypassCache) {
+        const cachedReport = CacheService.getCachedReport(normalizedDomain);
+        if (cachedReport) {
+          console.log('Using cached report');
+          setReport(cachedReport);
+          setCacheAge(CacheService.getCacheAgeString(normalizedDomain));
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Generate fresh report
+      console.log('Generating fresh report');
+      const generatedReport = await ReportGenerator.generateReport(normalizedDomain);
+
+      // Cache the report
+      CacheService.setCachedReport(normalizedDomain, generatedReport);
+
       setReport(generatedReport);
+      setCacheAge('just now');
 
     } catch (err) {
       setError({
@@ -42,6 +68,37 @@ function App() {
       });
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Handle URL hash changes to auto-load domains
+  useEffect(() => {
+    const loadFromHash = () => {
+      const hash = window.location.hash.slice(1); // Remove the # prefix
+      if (hash) {
+        const domain = decodeURIComponent(hash);
+        console.log(`Loading domain from URL hash: ${domain}`);
+        handleAnalyze(domain, false); // Don't bypass cache on initial load
+      }
+    };
+
+    // Load on mount
+    loadFromHash();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', loadFromHash);
+
+    // Cleanup old caches on mount
+    CacheService.cleanupOldCaches();
+
+    return () => {
+      window.removeEventListener('hashchange', loadFromHash);
+    };
+  }, [handleAnalyze]);
+
+  const handleRescan = () => {
+    if (report) {
+      handleAnalyze(report.domain, true); // Bypass cache
     }
   };
 
@@ -70,12 +127,57 @@ function App() {
 
       {report && (
         <>
+          {/* Cache status banner */}
+          {cacheAge && cacheAge !== 'just now' && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+              <div style={{ fontSize: '0.9rem' }}>
+                ℹ️ <strong>Cached report</strong> from {cacheAge}
+                <span style={{ marginLeft: '0.5rem', color: '#666' }}>
+                  (expires after 8 hours)
+                </span>
+              </div>
+              <button
+                onClick={handleRescan}
+                disabled={isLoading}
+                style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.9rem',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  opacity: isLoading ? 0.6 : 1
+                }}
+              >
+                🔄 Rescan Now
+              </button>
+            </div>
+          )}
+
           <ScoreDisplay score={report.safetyScore} />
           <ReportTabs report={report} />
 
-          <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+          <div style={{ marginTop: '2rem', textAlign: 'center', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={handleExportJSON}>
               Export Report (JSON)
+            </button>
+            <button
+              onClick={handleRescan}
+              disabled={isLoading}
+              style={{
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                opacity: isLoading ? 0.6 : 1
+              }}
+            >
+              🔄 Rescan
             </button>
           </div>
 
@@ -86,6 +188,11 @@ function App() {
             <p style={{ marginTop: '0.5rem' }}>
               Data sources: FediDB, instance APIs, Server Covenant list, GardenFence, IFTAS DNI
             </p>
+            {cacheAge === 'just now' && (
+              <p style={{ marginTop: '0.5rem', color: 'var(--success-color)' }}>
+                ✓ Fresh scan - cached for 8 hours
+              </p>
+            )}
           </div>
         </>
       )}

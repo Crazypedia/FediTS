@@ -11,11 +11,15 @@ Enter any Fediverse domain (e.g., `mastodon.social`, `fosstodon.org`) to see its
 ## Features
 
 - **Multi-Source Data Aggregation**: Queries FediDB, Fediverse Observer, and instance APIs
+- **Multi-Platform Support**: Works with Mastodon, Pleroma, Misskey, Sharkey, Firefish, and more
+- **Infrastructure Detection**: Identifies CDN, hosting provider, country, and cloud platforms
 - **Trust & Safety Scoring**: Automated scoring based on transparency, moderation policies, and federation status
 - **Blocklist Checking**: Compares instances against known blocklists (GardenFence, IFTAS DNI)
 - **Server Covenant Verification**: Checks if instance is part of the Fediverse Server Covenant
 - **Moderation Policy Display**: Shows published rules and moderation guidelines
 - **Federation Analysis**: Displays peer connections and blocked instances
+- **Smart Caching**: 8-hour cache for faster subsequent scans with manual rescan option
+- **URL-Based Scanning**: Direct links to scan specific domains (e.g., `#mastodon.social`)
 - **Export Reports**: Download results as JSON for further analysis
 
 ## Data Sources
@@ -50,14 +54,43 @@ npm run preview
 
 ## Usage
 
+### Basic Scan
+
 1. Enter a Fediverse instance domain (e.g., `mastodon.social`)
 2. Click "Analyze" to generate a comprehensive report
 3. View results across different tabs:
    - **Overview**: Instance information and Server Covenant status
+   - **Technical**: Software detection, infrastructure, hosting provider, CDN, country
    - **Moderation**: Published rules and blocked instances
    - **Federation**: Connected peers and federation status
    - **Trust**: Blocklist status and trust indicators
 4. Export report as JSON for archival or further analysis
+
+### URL-Based Scanning
+
+You can link directly to a specific instance scan by adding the domain to the URL hash:
+
+```
+https://crazypedia.github.io/FediTS/#mastodon.social
+https://crazypedia.github.io/FediTS/#fosstodon.org
+https://crazypedia.github.io/FediTS/#misskey.io
+```
+
+This allows you to share direct links to instance reports or bookmark frequently-checked instances.
+
+### Caching & Rescanning
+
+- **First scan**: Full data collection from all sources
+- **Subsequent scans**: Cached results are served instantly (valid for 8 hours)
+- **Cache indicator**: Blue banner shows when report is from cache and its age
+- **Manual rescan**: Click "🔄 Rescan" button to force a fresh scan, bypassing cache
+- **Automatic cleanup**: Expired caches (>8 hours) are automatically removed
+
+Benefits:
+- Faster load times for repeated scans
+- Reduced API calls to external services
+- Respectful of API rate limits
+- Fresh data when you need it via manual rescan
 
 ## Project Structure
 
@@ -75,6 +108,8 @@ FediTS/
 │   │   ├── instance.ts
 │   │   ├── covenant.ts
 │   │   ├── blocklists.ts
+│   │   ├── infrastructure.ts
+│   │   ├── cache.ts
 │   │   └── reportGenerator.ts
 │   ├── utils/          # Utility functions
 │   │   └── domainUtils.ts
@@ -112,16 +147,20 @@ Penalties:
 ### Phase 1 (MVP) - ✅ Complete
 - Domain validation and normalization
 - API integrations (FediDB, instance APIs, Covenant, blocklists)
+- Multi-platform support (Mastodon, Pleroma, Misskey, Sharkey, Firefish, etc.)
+- Infrastructure detection (CDN, hosting provider, country, ASN)
 - Basic scoring algorithm
 - React UI with tabs
 - JSON export
+- 8-hour caching with manual rescan
+- URL-based routing for direct instance links
 
 ### Phase 2 (Planned)
-- HTTP/TLS metadata checking (certificate, headers, security)
-- Enhanced caching and offline support
+- TLS certificate inspection and validation
 - Historical trend tracking
 - PDF export option
 - User-supplied API keys for authenticated access
+- Offline support with service workers
 
 ### Phase 3 (Future)
 - Backend proxy for TLS inspection
@@ -199,7 +238,9 @@ npm run build
 - All data comes from public APIs and community-maintained lists
 - Reports are generated client-side in the browser
 - External API calls are made directly from the user's browser
-- Caching is handled in-browser with localStorage/memory
+- Caching is handled locally in browser localStorage (8-hour retention)
+- Cache data can be cleared manually or expires automatically
+- No analytics, tracking, or telemetry of any kind
 
 ## Contributing
 
