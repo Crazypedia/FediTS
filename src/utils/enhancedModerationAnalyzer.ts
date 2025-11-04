@@ -340,24 +340,29 @@ export class EnhancedModerationAnalyzer {
       hasTransphobiaPolicy: boolean;
     };
   } {
-    // Check for each required policy area using actual category names from patterns
-    const hasRacismPolicy = matches.some(m =>
-      (m.category === 'protected_class' && m.subcategory === 'race' && m.weight > 0) ||
-      (m.category === 'hate_speech' && m.matchedText && /racis|racial|race/i.test(m.matchedText) && m.weight > 0)
+    // Check if there's a general umbrella pattern (covers all discrimination/hate)
+    const hasUmbrellaPattern = matches.some(m =>
+      (m.category === 'umbrella' && m.weight > 0)
     );
 
-    const hasSexismPolicy = matches.some(m =>
+    // Check for each required policy area using actual category names from patterns
+    const hasRacismPolicy = hasUmbrellaPattern || matches.some(m =>
+      (m.category === 'protected_class' && m.subcategory === 'race' && m.weight > 0) ||
+      (m.category === 'hate_speech' && m.matchedText && /racis|racial|race|xenophob/i.test(m.matchedText) && m.weight > 0)
+    );
+
+    const hasSexismPolicy = hasUmbrellaPattern || matches.some(m =>
       (m.category === 'protected_class' && (m.subcategory === 'gender' || m.subcategory === 'gender_identity') && m.weight > 0) ||
       (m.category === 'hate_speech' && m.matchedText && /sexis|misogyn|gender/i.test(m.matchedText) && m.weight > 0) ||
       (m.category === 'harassment' && m.matchedText && /gender|sex/i.test(m.matchedText) && m.weight > 0)
     );
 
-    const hasHomophobiaPolicy = matches.some(m =>
+    const hasHomophobiaPolicy = hasUmbrellaPattern || matches.some(m =>
       (m.category === 'protected_class' && m.subcategory === 'sexual_orientation' && m.weight > 0) ||
       (m.category === 'hate_speech' && m.matchedText && /homophob|gay|lesbian|lgbtq|lgbt|sexual.*orientation/i.test(m.matchedText) && m.weight > 0)
     );
 
-    const hasTransphobiaPolicy = matches.some(m =>
+    const hasTransphobiaPolicy = hasUmbrellaPattern || matches.some(m =>
       (m.category === 'protected_class' && m.subcategory === 'gender_identity' && m.weight > 0) ||
       (m.category === 'hate_speech' && m.matchedText && /transphob|transgender|trans|non.*binary|gender.*identity/i.test(m.matchedText) && m.weight > 0)
     );
@@ -389,21 +394,41 @@ export class EnhancedModerationAnalyzer {
    */
   private static identifyMissingCategories(matches: MatchedPattern[]): string[] {
     const coveredCategories = new Set(matches.filter(m => m.weight > 0).map(m => m.category));
+    const coveredSubcategories = new Set(
+      matches.filter(m => m.weight > 0 && m.category === 'protected_class').map(m => m.subcategory)
+    );
     const missing: string[] = [];
 
-    // Check critical core safety categories
-    const criticalCategories = [
-      'Core Safety: Harassment',
-      'Core Safety: Hate Speech',
-      'Core Safety: Privacy/Doxxing',
-      'Protected Class: Gender Identity',
-      'Protected Class: Sexual Orientation',
-      'Protected Class: Race'
+    // Check critical core safety categories (using actual pattern category names)
+    const criticalSafetyCategories = [
+      { key: 'harassment', label: 'Harassment' },
+      { key: 'hate_speech', label: 'Hate Speech' },
+      { key: 'privacy', label: 'Privacy/Doxxing' },
+      { key: 'violence', label: 'Violence/Threats' }
     ];
 
-    for (const category of criticalCategories) {
-      if (!coveredCategories.has(category)) {
-        missing.push(category);
+    // Check critical protected class subcategories
+    const criticalProtectedClasses = [
+      { key: 'gender_identity', label: 'Gender Identity' },
+      { key: 'sexual_orientation', label: 'Sexual Orientation' },
+      { key: 'race', label: 'Race/Ethnicity' }
+    ];
+
+    // Check for missing safety categories
+    for (const cat of criticalSafetyCategories) {
+      if (!coveredCategories.has(cat.key) && !coveredCategories.has('umbrella')) {
+        missing.push(cat.label);
+      }
+    }
+
+    // Check for missing protected classes (only if protected_class category not covered)
+    if (coveredCategories.has('protected_class') || coveredCategories.has('umbrella')) {
+      // If we have umbrella or general protected_class, don't flag missing subcategories
+    } else {
+      for (const pc of criticalProtectedClasses) {
+        if (!coveredSubcategories.has(pc.key)) {
+          missing.push(pc.label);
+        }
       }
     }
 
@@ -449,10 +474,11 @@ export class EnhancedModerationAnalyzer {
       strengths.push('Involves community in policy decisions');
     }
 
-    // Check for strong anti-hate provisions
+    // Check for strong anti-hate provisions (using actual category names)
     const hateMatches = matches.filter(m =>
-      m.category.includes('Hate Speech') ||
-      m.category.includes('Protected Class')
+      m.category === 'hate_speech' ||
+      m.category === 'protected_class' ||
+      m.category === 'umbrella'
     );
     if (hateMatches.length >= 5) {
       strengths.push('Strong anti-discrimination and hate speech provisions');
@@ -498,17 +524,17 @@ export class EnhancedModerationAnalyzer {
       weaknesses.push('Policy is vague or lacks specific safety provisions');
     }
 
-    // Check for critical missing categories
-    if (missingCategories.includes('Core Safety: Harassment')) {
+    // Check for critical missing categories (using corrected labels from identifyMissingCategories)
+    if (missingCategories.includes('Harassment')) {
       weaknesses.push('No clear harassment protection policy');
     }
-    if (missingCategories.includes('Core Safety: Hate Speech')) {
+    if (missingCategories.includes('Hate Speech')) {
       weaknesses.push('No explicit hate speech prohibition');
     }
-    if (missingCategories.includes('Protected Class: Gender Identity')) {
+    if (missingCategories.includes('Gender Identity')) {
       weaknesses.push('No specific protections for gender identity');
     }
-    if (missingCategories.includes('Protected Class: Sexual Orientation')) {
+    if (missingCategories.includes('Sexual Orientation')) {
       weaknesses.push('No specific protections for sexual orientation');
     }
 
