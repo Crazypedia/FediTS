@@ -225,7 +225,7 @@ export class ModerationPolicyAnalyzer {
     }
 
     const totalKeywords = keywordsFound.length;
-    const meetsMinimum = totalKeywords >= 4;
+    const meetsMinimum = totalKeywords >= 2; // Lowered from 4 to be more forgiving
 
     // Calculate score (0-37.5, which is 1.5x the base 25 points)
     const score = this.calculateScore(totalKeywords, categoriesAddressed.length, details);
@@ -244,7 +244,7 @@ export class ModerationPolicyAnalyzer {
    * Calculate the moderation score
    *
    * Scoring:
-   * - Need minimum 4 keywords to get any score
+   * - Need minimum 2 keywords to get any score (lowered from 4 to be more forgiving)
    * - Base score: 25 points
    * - Can score up to 37.5 points (1.5x base)
    * - Bonus for covering more categories
@@ -258,8 +258,8 @@ export class ModerationPolicyAnalyzer {
     const BASE_SCORE = 25;
     const MAX_SCORE = 37.5; // 1.5x base
 
-    // Must meet minimum threshold of 4 keywords
-    if (totalKeywords < 4) {
+    // Must meet minimum threshold of 2 keywords (lowered from 4 to be more forgiving)
+    if (totalKeywords < 2) {
       return 0;
     }
 
@@ -268,7 +268,8 @@ export class ModerationPolicyAnalyzer {
 
     // Bonus for keyword coverage (up to +5 points)
     // More keywords = better coverage
-    const keywordBonus = Math.min(5, (totalKeywords - 4) * 0.5);
+    // Adjusted formula to be more generous at lower keyword counts
+    const keywordBonus = Math.min(5, (totalKeywords - 2) * 0.6);
     score += keywordBonus;
 
     // Bonus for category diversity (up to +5 points)
@@ -279,10 +280,11 @@ export class ModerationPolicyAnalyzer {
 
     // Bonus for comprehensive coverage of critical categories (up to +2.5 points)
     // Racism, transphobia, and homophobia are critical per Mastodon Server Covenant
+    // Lowered threshold from 3 to 2 to be more forgiving
     let criticalBonus = 0;
-    if (details.racism >= 3) criticalBonus += 0.83;
-    if (details.transphobia >= 3) criticalBonus += 0.83;
-    if (details.homophobia >= 3) criticalBonus += 0.84;
+    if (details.racism >= 2) criticalBonus += 0.83;
+    if (details.transphobia >= 2) criticalBonus += 0.83;
+    if (details.homophobia >= 2) criticalBonus += 0.84;
     score += criticalBonus;
 
     // Cap at maximum score
