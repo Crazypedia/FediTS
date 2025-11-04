@@ -241,6 +241,7 @@ export class ReportGenerator {
       version,
       serverType: instanceData.serverType,
       nodeInfoSoftware,
+      instanceData: instanceData.instance || undefined,
       infrastructure,
       wellKnown,
       moderationPolicies,
