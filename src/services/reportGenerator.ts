@@ -183,23 +183,42 @@ export class ReportGenerator {
       : undefined;
 
     // Calculate metadata quality score
-    // Create a partial report object for scoring
-    const partialReportForMetadata: Partial<InstanceReport> = {
-      domain,
-      wellKnown,
-      moderationPolicies
-    };
-    const metadataScore = MetadataScorer.score(partialReportForMetadata as InstanceReport);
+    let metadataScore;
+    try {
+      const partialReportForMetadata: Partial<InstanceReport> = {
+        domain,
+        wellKnown,
+        moderationPolicies
+      };
+      metadataScore = MetadataScorer.score(partialReportForMetadata as InstanceReport);
+    } catch (error) {
+      console.error('Error calculating metadata score:', error);
+      errors.push({
+        source: 'metadataScoring',
+        message: 'Failed to calculate metadata score',
+        timestamp: new Date()
+      });
+    }
 
     // Calculate network health score
-    const partialReportForNetwork: Partial<InstanceReport> = {
-      domain,
-      peers,
-      peersTotalCount,
-      blockedInstances,
-      externalBlocklists: blocklistMatches
-    };
-    const networkHealthScore = await NetworkHealthScorer.score(partialReportForNetwork as InstanceReport);
+    let networkHealthScore;
+    try {
+      const partialReportForNetwork: Partial<InstanceReport> = {
+        domain,
+        peers,
+        peersTotalCount,
+        blockedInstances,
+        externalBlocklists: blocklistMatches
+      };
+      networkHealthScore = await NetworkHealthScorer.score(partialReportForNetwork as InstanceReport);
+    } catch (error) {
+      console.error('Error calculating network health score:', error);
+      errors.push({
+        source: 'networkHealthScoring',
+        message: 'Failed to calculate network health score',
+        timestamp: new Date()
+      });
+    }
 
     // Calculate safety score (use enhanced analysis if available, fallback to legacy)
     const safetyScore = this.calculateSafetyScore({

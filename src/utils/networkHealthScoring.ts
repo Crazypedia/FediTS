@@ -95,72 +95,123 @@ export class NetworkHealthScorer {
       if (response.ok) {
         this.federationStats = await response.json();
         console.log('Loaded federation statistics');
+        return;
       }
     } catch (error) {
-      console.error('Failed to load federation statistics:', error);
-      // Use fallback estimates based on typical Fediverse distributions
-      this.federationStats = {
-        peerCounts: {
-          p25: 50,
-          p50: 150,
-          p75: 500,
-          p90: 1500,
-          p95: 3000
-        }
-      };
+      console.warn('Failed to load federation statistics, using defaults:', error);
     }
+
+    // Use fallback estimates based on typical Fediverse distributions
+    this.federationStats = {
+      peerCounts: {
+        p25: 50,
+        p50: 150,
+        p75: 500,
+        p90: 1500,
+        p95: 3000
+      }
+    };
   }
 
   /**
    * Score network health
    */
   static async score(report: InstanceReport): Promise<NetworkHealthScore> {
-    // Ensure reputation lists are loaded
-    if (this.trustedInstances.size === 0 || this.problematicInstances.size === 0) {
-      await this.loadReputationLists();
+    try {
+      // Ensure reputation lists are loaded
+      if (this.trustedInstances.size === 0 && this.problematicInstances.size === 0) {
+        await this.loadReputationLists();
+      }
+
+      // Ensure federation stats are loaded
+      if (!this.federationStats) {
+        await this.loadFederationStatistics();
+      }
+
+      // Double-check federation stats loaded
+      if (!this.federationStats) {
+        console.error('Federation stats failed to load, using minimal scoring');
+        // Return minimal score if stats failed to load
+        return {
+          totalScore: 10,
+          breakdown: {
+            federationHealth: 5,
+            reputation: 4,
+            blockingBehavior: 1,
+            reciprocity: 0
+          },
+          details: {
+            peerCount: report.peersTotalCount || report.peers?.length || 0,
+            peerPercentile: undefined,
+            reputationLevel: 'neutral',
+            blockCount: 0,
+            blockRatio: undefined,
+            blockedByCount: 0,
+            isWidelyBlocked: false
+          },
+          flags: ['Network health scoring unavailable - using default values']
+        };
+      }
+
+      const federationHealth = this.scoreFederationHealth(report);
+      const reputation = this.scoreReputation(report);
+      const blockingBehavior = this.scoreBlockingBehavior(report);
+      const reciprocity = this.scoreReciprocity(report);
+
+      const totalScore =
+        federationHealth.score +
+        reputation.score +
+        blockingBehavior.score +
+        reciprocity.score;
+
+      const flags: string[] = [];
+      flags.push(...federationHealth.flags);
+      flags.push(...reputation.flags);
+      flags.push(...blockingBehavior.flags);
+      flags.push(...reciprocity.flags);
+
+      return {
+        totalScore,
+        breakdown: {
+          federationHealth: federationHealth.score,
+          reputation: reputation.score,
+          blockingBehavior: blockingBehavior.score,
+          reciprocity: reciprocity.score
+        },
+        details: {
+          peerCount: federationHealth.peerCount,
+          peerPercentile: federationHealth.percentile,
+          reputationLevel: reputation.level,
+          blockCount: blockingBehavior.blockCount,
+          blockRatio: blockingBehavior.blockRatio,
+          blockedByCount: reciprocity.blockedByCount,
+          isWidelyBlocked: reciprocity.isWidelyBlocked
+        },
+        flags
+      };
+    } catch (error) {
+      console.error('Error in network health scoring:', error);
+      // Return safe default on error
+      return {
+        totalScore: 10,
+        breakdown: {
+          federationHealth: 5,
+          reputation: 4,
+          blockingBehavior: 1,
+          reciprocity: 0
+        },
+        details: {
+          peerCount: report.peersTotalCount || report.peers?.length || 0,
+          peerPercentile: undefined,
+          reputationLevel: 'neutral',
+          blockCount: 0,
+          blockRatio: undefined,
+          blockedByCount: 0,
+          isWidelyBlocked: false
+        },
+        flags: ['Error calculating network health - using default values']
+      };
     }
-
-    // Ensure federation stats are loaded
-    if (!this.federationStats) {
-      await this.loadFederationStatistics();
-    }
-
-    const federationHealth = this.scoreFederationHealth(report);
-    const reputation = this.scoreReputation(report);
-    const blockingBehavior = this.scoreBlockingBehavior(report);
-    const reciprocity = this.scoreReciprocity(report);
-
-    const totalScore =
-      federationHealth.score +
-      reputation.score +
-      blockingBehavior.score +
-      reciprocity.score;
-
-    const flags: string[] = [];
-    flags.push(...federationHealth.flags);
-    flags.push(...reputation.flags);
-    flags.push(...blockingBehavior.flags);
-    flags.push(...reciprocity.flags);
-
-    return {
-      totalScore,
-      breakdown: {
-        federationHealth: federationHealth.score,
-        reputation: reputation.score,
-        blockingBehavior: blockingBehavior.score,
-        reciprocity: reciprocity.score
-      },
-      details: {
-        peerCount: federationHealth.peerCount,
-        peerPercentile: federationHealth.percentile,
-        reputationLevel: reputation.level,
-        blockCount: blockingBehavior.blockCount,
-        blockRatio: blockingBehavior.blockRatio,
-        blockedByCount: reciprocity.blockedByCount,
-        isWidelyBlocked: reciprocity.isWidelyBlocked
-      },
-      flags
-    };
   }
 
   /**
@@ -242,6 +293,7 @@ export class NetworkHealthScorer {
 
   /**
    * Score blocking behavior (0-4 points)
+   * Note: Most servers don't expose block lists, so we give neutral scores
    */
   private static scoreBlockingBehavior(report: InstanceReport): {
     score: number;
@@ -253,45 +305,48 @@ export class NetworkHealthScorer {
     const blockCount = report.blockedInstances?.length || 0;
     const peerCount = report.peersTotalCount || report.peers?.length || 0;
 
+    // Most servers don't expose block lists
+    // If we have no block data, give neutral score
+    if (blockCount === 0 && !report.blockedInstances) {
+      // Block list not exposed (common)
+      return { score: 2, blockCount: 0, flags };
+    }
+
     if (blockCount === 0) {
-      // No blocks at all - could be good or concerning
+      // Block list is exposed but empty
       if (peerCount > 100) {
-        flags.push('⚠️ Large instance with no blocks - unusual');
+        flags.push('Large instance with no blocks listed');
         return { score: 2, blockCount, flags };
       }
       return { score: 3, blockCount, flags };
     }
 
-    // Calculate block ratio
+    // If we have block data, analyze it
     const totalKnownInstances = peerCount + blockCount;
     const blockRatio = totalKnownInstances > 0
       ? (blockCount / totalKnownInstances) * 100
       : 0;
 
     if (blockRatio < 1) {
-      // Very low block ratio
       flags.push(`Low blocking activity (${blockRatio.toFixed(1)}%)`);
       return { score: 4, blockCount, blockRatio, flags };
     } else if (blockRatio < 5) {
-      // Normal block ratio
       return { score: 3, blockCount, blockRatio, flags };
     } else if (blockRatio < 15) {
-      // Moderate block ratio
       flags.push(`Moderate blocking activity (${blockRatio.toFixed(1)}%)`);
       return { score: 2, blockCount, blockRatio, flags };
     } else if (blockRatio < 30) {
-      // High block ratio
-      flags.push(`⚠️ High blocking activity (${blockRatio.toFixed(1)}%)`);
+      flags.push(`High blocking activity (${blockRatio.toFixed(1)}%)`);
       return { score: 1, blockCount, blockRatio, flags };
     } else {
-      // Very high block ratio - concerning
-      flags.push(`⚠️ Very high blocking activity (${blockRatio.toFixed(1)}%) - may indicate isolation`);
+      flags.push(`Very high blocking activity (${blockRatio.toFixed(1)}%)`);
       return { score: 0, blockCount, blockRatio, flags };
     }
   }
 
   /**
    * Score block reciprocity (0-3 points)
+   * Checks if this instance appears on external blocklists
    */
   private static scoreReciprocity(report: InstanceReport): {
     score: number;
@@ -301,29 +356,28 @@ export class NetworkHealthScorer {
   } {
     const flags: string[] = [];
 
-    // Check if this instance is blocked by known instances
-    // This would require querying other instances or using pre-computed data
-    // For now, we'll check against external blocklists
+    // Check if this instance appears on external blocklists
+    // Note: This only includes blocklists we actively check, not private server blocks
     const blockedByCount = report.externalBlocklists?.filter(
       bl => bl.severity === 'critical' || bl.severity === 'warning'
     ).length || 0;
 
-    const isWidelyBlocked = blockedByCount >= 20;
+    const isWidelyBlocked = blockedByCount >= 5; // Lowered threshold since we have limited blocklist coverage
 
     if (blockedByCount === 0) {
-      // Not blocked by any known sources
+      // Not on any public blocklists we check
       return { score: 3, blockedByCount, isWidelyBlocked, flags };
-    } else if (blockedByCount < 5) {
-      // Blocked by a few instances
-      flags.push(`Blocked by ${blockedByCount} blocklists`);
+    } else if (blockedByCount === 1) {
+      // On one blocklist - could be false positive
+      flags.push(`Found on 1 blocklist - review recommended`);
       return { score: 2, blockedByCount, isWidelyBlocked, flags };
-    } else if (blockedByCount < 20) {
-      // Blocked by many instances
-      flags.push(`⚠️ Blocked by ${blockedByCount} blocklists - reputation concerns`);
+    } else if (blockedByCount < 5) {
+      // On multiple blocklists - concerning
+      flags.push(`⚠️ Found on ${blockedByCount} blocklists - reputation concerns`);
       return { score: 1, blockedByCount, isWidelyBlocked, flags };
     } else {
-      // Widely blocked - major red flag
-      flags.push(`🚨 Widely blocked by ${blockedByCount}+ blocklists - serious reputation issues`);
+      // On many blocklists - serious issue
+      flags.push(`🚨 Found on ${blockedByCount}+ blocklists - serious reputation issues`);
       return { score: 0, blockedByCount, isWidelyBlocked, flags };
     }
   }
