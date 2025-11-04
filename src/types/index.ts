@@ -6,6 +6,7 @@ export interface InstanceReport {
   version?: string;
   serverType?: string; // Detected by Megalodon library
   nodeInfoSoftware?: string; // Detected from NodeInfo
+  instanceData?: MastodonInstance; // Full instance data from API
   infrastructure?: InfrastructureInfo;
   wellKnown?: WellKnownData; // .well-known metadata and robots.txt
   uptime?: number;
@@ -277,11 +278,26 @@ export interface MastodonInstance {
   version?: string;
   registrations?: boolean;
   approval_required?: boolean;
+  invites_enabled?: boolean;
+  thumbnail?: string; // Instance thumbnail/banner image
+  contact_account?: {
+    username?: string;
+    acct?: string;
+    display_name?: string;
+    url?: string;
+  };
+  email?: string; // Contact email
+  rules?: Array<{id: string; text: string}>;
   stats?: {
     user_count?: number;
     status_count?: number;
     domain_count?: number;
   };
+  urls?: {
+    streaming_api?: string;
+  };
+  languages?: string[];
+  configuration?: any;
 }
 
 export interface MastodonRule {
