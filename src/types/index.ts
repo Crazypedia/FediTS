@@ -113,7 +113,6 @@ export interface MatchedPattern {
   weight: number;
   matchedText: string;
   context: string; // Surrounding text for context
-  isNegated: boolean;
   language: string;
   patternUsed: string;
 }
