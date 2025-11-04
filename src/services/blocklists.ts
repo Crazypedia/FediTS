@@ -48,22 +48,30 @@ export class BlocklistService {
    * Fetch a blocklist from a URL
    */
   private static async fetchBlocklist(url: string, listName: string, defaultSeverity: 'info' | 'warning' | 'critical'): Promise<Map<string, BlocklistEntry>> {
+    console.log(`[Blocklist] Fetching ${listName} from ${url}`);
+
     try {
       const response = await fetch(url, {
         signal: AbortSignal.timeout(15000)
       });
 
       if (!response.ok) {
-        console.warn(`Failed to fetch ${listName}: ${response.status}`);
+        console.error(`[Blocklist] Failed to fetch ${listName}: HTTP ${response.status} ${response.statusText}`);
+        console.error(`[Blocklist] URL: ${url}`);
         return new Map();
       }
 
+      console.log(`[Blocklist] Successfully fetched ${listName}, parsing data...`);
       const data = await response.json();
       const entries = new Map<string, BlocklistEntry>();
 
+      console.log(`[Blocklist] ${listName} data structure:`, Array.isArray(data) ? 'Array' : typeof data);
+
       // Parse the blocklist (format may vary)
       if (Array.isArray(data)) {
-        data.forEach(item => {
+        console.log(`[Blocklist] ${listName} has ${data.length} entries`);
+
+        data.forEach((item, index) => {
           let domain: string;
           let reason: string | undefined;
           let severity = defaultSeverity;
@@ -79,6 +87,7 @@ export class BlocklistService {
             reason = item.reason || item.description;
             severity = item.severity || defaultSeverity;
           } else {
+            console.warn(`[Blocklist] ${listName}[${index}]: Unrecognized entry format:`, item);
             return;
           }
 
@@ -87,21 +96,45 @@ export class BlocklistService {
             reason,
             severity
           });
+
+          // Log first few entries for debugging
+          if (index < 3) {
+            console.log(`[Blocklist] ${listName}[${index}]: ${domain}${reason ? ` - ${reason}` : ''}`);
+          }
         });
       } else if (typeof data === 'object') {
         // Handle object format where keys are domains
-        Object.entries(data).forEach(([domain, info]: [string, any]) => {
+        const domainKeys = Object.keys(data);
+        console.log(`[Blocklist] ${listName} has ${domainKeys.length} entries (object format)`);
+
+        Object.entries(data).forEach(([domain, info]: [string, any], index) => {
+          const reason = typeof info === 'string' ? info : info?.reason || info?.description || info?.comment;
+          const severity = info?.severity || defaultSeverity;
+
           entries.set(domain.toLowerCase(), {
             domain: domain.toLowerCase(),
-            reason: typeof info === 'string' ? info : info?.reason,
-            severity: info?.severity || defaultSeverity
+            reason,
+            severity
           });
+
+          // Log first few entries for debugging
+          if (index < 3) {
+            console.log(`[Blocklist] ${listName}[${index}]: ${domain}${reason ? ` - ${reason}` : ''}`);
+          }
         });
+      } else {
+        console.error(`[Blocklist] ${listName}: Unexpected data format (not array or object)`);
       }
 
+      console.log(`[Blocklist] ${listName} loaded ${entries.size} domains`);
       return entries;
     } catch (error) {
-      console.error(`Error fetching ${listName}:`, error);
+      console.error(`[Blocklist] Error fetching ${listName}:`, error);
+      console.error(`[Blocklist] URL: ${url}`);
+      if (error instanceof Error) {
+        console.error(`[Blocklist] Error details: ${error.message}`);
+        console.error(`[Blocklist] Stack trace:`, error.stack);
+      }
       return new Map();
     }
   }
@@ -130,6 +163,8 @@ export class BlocklistService {
     const normalizedDomain = domain.toLowerCase();
     const matches: BlocklistMatch[] = [];
 
+    console.log(`[Blocklist] Checking domain: ${normalizedDomain}`);
+
     // Fetch all blocklists in parallel
     const [gardenFence, iftasDni] = await Promise.all([
       this.getBlocklist(
@@ -146,25 +181,41 @@ export class BlocklistService {
       )
     ]);
 
+    console.log(`[Blocklist] GardenFence has ${gardenFence.size} entries, IFTAS DNI has ${iftasDni.size} entries`);
+
     // Check GardenFence
     const gardenFenceMatch = gardenFence.get(normalizedDomain);
     if (gardenFenceMatch) {
+      console.log(`[Blocklist] ⚠️  MATCH in GardenFence: ${normalizedDomain}`);
+      console.log(`[Blocklist] Reason: ${gardenFenceMatch.reason || 'No reason provided'}`);
+      console.log(`[Blocklist] Severity: ${gardenFenceMatch.severity}`);
+
       matches.push({
         listName: BLOCKLIST_SOURCES.GARDEN_FENCE.name,
         reason: gardenFenceMatch.reason,
         severity: gardenFenceMatch.severity
       });
+    } else {
+      console.log(`[Blocklist] ✓ No match in GardenFence for ${normalizedDomain}`);
     }
 
     // Check IFTAS DNI
     const iftasMatch = iftasDni.get(normalizedDomain);
     if (iftasMatch) {
+      console.log(`[Blocklist] ⚠️  MATCH in IFTAS DNI: ${normalizedDomain}`);
+      console.log(`[Blocklist] Reason: ${iftasMatch.reason || 'No reason provided'}`);
+      console.log(`[Blocklist] Severity: ${iftasMatch.severity}`);
+
       matches.push({
         listName: BLOCKLIST_SOURCES.IFTAS_DNI.name,
         reason: iftasMatch.reason,
         severity: iftasMatch.severity
       });
+    } else {
+      console.log(`[Blocklist] ✓ No match in IFTAS DNI for ${normalizedDomain}`);
     }
+
+    console.log(`[Blocklist] Total matches for ${normalizedDomain}: ${matches.length}`);
 
     return matches;
   }

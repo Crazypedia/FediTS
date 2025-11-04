@@ -44,6 +44,70 @@ export default function ReportTabs({ report }: ReportTabsProps) {
 
   return (
     <div className="card">
+      {/* BLOCKLIST WARNING BANNER */}
+      {report.externalBlocklists && report.externalBlocklists.length > 0 && (
+        <div style={{
+          padding: '1.25rem',
+          marginBottom: '1.5rem',
+          backgroundColor: 'rgba(220, 38, 38, 0.15)',
+          border: '3px solid rgba(220, 38, 38, 0.5)',
+          borderRadius: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+            <span style={{ fontSize: '2rem', lineHeight: 1 }}>🚨</span>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 0.75rem 0', color: '#dc2626', fontSize: '1.3rem' }}>
+                WARNING: Instance Appears on Community Blocklists
+              </h3>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 'bold' }}>
+                This instance has been flagged by {report.externalBlocklists.length} blocklist{report.externalBlocklists.length > 1 ? 's' : ''}:
+              </p>
+              {report.externalBlocklists.map((match, idx) => (
+                <div key={idx} style={{
+                  padding: '0.75rem',
+                  marginBottom: '0.75rem',
+                  backgroundColor: match.severity === 'critical'
+                    ? 'rgba(220, 38, 38, 0.2)'
+                    : 'rgba(245, 158, 11, 0.2)',
+                  border: '1px solid ' + (match.severity === 'critical'
+                    ? 'rgba(220, 38, 38, 0.4)'
+                    : 'rgba(245, 158, 11, 0.4)'),
+                  borderRadius: '6px'
+                }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.5rem', color: '#dc2626' }}>
+                    {match.listName}
+                    <span style={{
+                      marginLeft: '0.5rem',
+                      padding: '0.25rem 0.5rem',
+                      fontSize: '0.75rem',
+                      backgroundColor: match.severity === 'critical' ? '#dc2626' : '#f59e0b',
+                      color: '#fff',
+                      borderRadius: '3px',
+                      textTransform: 'uppercase'
+                    }}>
+                      {match.severity}
+                    </span>
+                  </div>
+                  {match.reason ? (
+                    <div style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
+                      <strong>Reason:</strong> {match.reason}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.9rem', fontStyle: 'italic', color: '#888' }}>
+                      No specific reason provided by blocklist
+                    </div>
+                  )}
+                </div>
+              ))}
+              <p style={{ margin: '1rem 0 0 0', fontSize: '0.9rem', color: '#666' }}>
+                <strong>⚠️ Important:</strong> Blocklist inclusion indicates community concerns about this instance's
+                moderation practices or content. Exercise caution when federating with this instance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Instance Status Banner */}
       {report.instanceStatus && !report.instanceStatus.reachable && (
         <div style={{
@@ -366,6 +430,21 @@ function SafetyTab({ report }: { report: InstanceReport }) {
           <SourceBadge source="instance-api" tooltip="From /api/v1/instance/rules endpoint" />
         )}
       </h3>
+
+      {/* Algorithmic Detection Disclaimer */}
+      <div style={{
+        padding: '0.75rem 1rem',
+        marginBottom: '1.5rem',
+        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+        border: '1px solid rgba(59, 130, 246, 0.25)',
+        borderRadius: '8px',
+        fontSize: '0.9rem'
+      }}>
+        <strong>ℹ️ Disclaimer:</strong> The rule analysis below is generated algorithmically using pattern matching
+        and natural language processing. While it provides helpful insights, it may not capture all nuances
+        of an instance's moderation policies. <strong>Users should read the actual rules carefully and make
+        their own informed determination</strong> about whether an instance is suitable for their needs.
+      </div>
 
       {/* Moderation Policies/Rules */}
       {report.moderationPolicies && report.moderationPolicies.length > 0 ? (

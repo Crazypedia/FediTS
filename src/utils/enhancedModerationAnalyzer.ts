@@ -308,22 +308,26 @@ export class EnhancedModerationAnalyzer {
       hasTransphobiaPolicy: boolean;
     };
   } {
-    // Check for each required policy area
+    // Check for each required policy area using actual category names from patterns
     const hasRacismPolicy = matches.some(m =>
-      m.category.includes('Protected Class: Race') && m.weight > 0
+      (m.category === 'protected_class' && m.subcategory === 'race' && m.weight > 0) ||
+      (m.category === 'hate_speech' && m.matchedText && /racis|racial|race/i.test(m.matchedText) && m.weight > 0)
     );
 
     const hasSexismPolicy = matches.some(m =>
-      (m.category.includes('Protected Class: Gender') ||
-       m.category.includes('Core Safety: Sexism')) && m.weight > 0
+      (m.category === 'protected_class' && (m.subcategory === 'gender' || m.subcategory === 'gender_identity') && m.weight > 0) ||
+      (m.category === 'hate_speech' && m.matchedText && /sexis|misogyn|gender/i.test(m.matchedText) && m.weight > 0) ||
+      (m.category === 'harassment' && m.matchedText && /gender|sex/i.test(m.matchedText) && m.weight > 0)
     );
 
     const hasHomophobiaPolicy = matches.some(m =>
-      m.category.includes('Protected Class: Sexual Orientation') && m.weight > 0
+      (m.category === 'protected_class' && m.subcategory === 'sexual_orientation' && m.weight > 0) ||
+      (m.category === 'hate_speech' && m.matchedText && /homophob|gay|lesbian|lgbtq|lgbt|sexual.*orientation/i.test(m.matchedText) && m.weight > 0)
     );
 
     const hasTransphobiaPolicy = matches.some(m =>
-      m.category.includes('Protected Class: Gender Identity') && m.weight > 0
+      (m.category === 'protected_class' && m.subcategory === 'gender_identity' && m.weight > 0) ||
+      (m.category === 'hate_speech' && m.matchedText && /transphob|transgender|trans|non.*binary|gender.*identity/i.test(m.matchedText) && m.weight > 0)
     );
 
     // Calculate score (25 points each)
