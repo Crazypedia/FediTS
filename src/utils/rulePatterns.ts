@@ -179,12 +179,15 @@ export const CORE_SAFETY_PATTERNS: RulePattern[] = [
         'brigading',
         'intimidation',
         'intimidating',
-        'intimidate'
+        'intimidate',
+        'block.*evasion',
+        'evading.*blocks?',
+        'circumvent.*blocks?'
       ],
-      de: ['belästigung', 'mobbing', 'stalking', 'schikanierung'],
-      fr: ['harcèlement', 'intimidation', 'harceler'],
-      es: ['acoso', 'intimidación', 'hostigamiento'],
-      ja: ['嫌がらせ', 'ハラスメント', 'いじめ', 'ストーカー']
+      de: ['belästigung', 'mobbing', 'stalking', 'schikanierung', 'blockumgehung'],
+      fr: ['harcèlement', 'intimidation', 'harceler', 'contournement.*blocage'],
+      es: ['acoso', 'intimidación', 'hostigamiento', 'evasión.*bloqueo'],
+      ja: ['嫌がらせ', 'ハラスメント', 'いじめ', 'ストーカー', 'ブロック回避']
     }
   },
 
@@ -313,16 +316,23 @@ export const CORE_SAFETY_PATTERNS: RulePattern[] = [
     isPositive: true,
     patterns: {
       en: [
+        'misinformation',
+        'disinformation',
+        'false.*information',
+        'misleading.*information',
+        'deliberately.*false',
+        'knowingly.*false',
+        'false.*(?:and|or).*misleading',
+        'misleading.*(?:and|or).*false',
         'medical.*misinformation',
         'health.*misinformation',
         'election.*interference',
-        'coordinated.*inauthentic',
-        'deliberately.*false'
+        'coordinated.*inauthentic'
       ],
-      de: ['medizinische.*fehlinformation', 'gesundheit.*desinformation', 'wahlmanipulation'],
-      fr: ['désinformation.*médicale', 'désinformation.*santé', 'ingérence.*électorale'],
-      es: ['desinformación.*médica', 'desinformación.*salud', 'interferencia.*electoral'],
-      ja: ['医療.*誤情報', '健康.*デマ', '選挙.*干渉']
+      de: ['fehlinformation', 'desinformation', 'falsche.*information', 'irreführend', 'medizinische.*fehlinformation', 'gesundheit.*desinformation', 'wahlmanipulation'],
+      fr: ['désinformation', 'information.*fausse', 'information.*trompeuse', 'désinformation.*médicale', 'désinformation.*santé', 'ingérence.*électorale'],
+      es: ['desinformación', 'información.*falsa', 'información.*engañosa', 'desinformación.*médica', 'desinformación.*salud', 'interferencia.*electoral'],
+      ja: ['誤情報', '偽情報', '虚偽.*情報', '誤解.*招く', '医療.*誤情報', '健康.*デマ', '選挙.*干渉']
     }
   }
 ];
@@ -468,6 +478,19 @@ export const PROTECTED_CLASS_PATTERNS: RulePattern[] = [
       fr: ['âge', 'âgisme'],
       es: ['edad', 'edadismo'],
       ja: ['年齢', '年齢差別']
+    }
+  },
+  {
+    category: 'protected_class',
+    subcategory: 'caste',
+    weight: 3,
+    isPositive: true,
+    patterns: {
+      en: ['caste', 'casteism', 'casteist'],
+      de: ['kaste', 'kastensystem'],
+      fr: ['caste', 'système.*castes'],
+      es: ['casta', 'sistema.*castas'],
+      ja: ['カースト', 'カースト制度']
     }
   }
 ];
