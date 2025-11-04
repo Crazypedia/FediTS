@@ -19,12 +19,12 @@ interface BlocklistEntry {
 const BLOCKLIST_SOURCES = {
   GARDEN_FENCE: {
     name: 'GardenFence',
-    url: 'https://github.com/gardenfence/blocklist/raw/main/blocklist.json',
+    url: 'https://raw.githubusercontent.com/gardenfence/blocklist/refs/heads/main/gardenfence-mastodon.csv',
     severity: 'warning' as const
   },
   IFTAS_DNI: {
     name: 'IFTAS DNI',
-    url: 'https://raw.githubusercontent.com/iftas-org/dni-list/main/dni-instances.json',
+    url: 'https://about.iftas.org/wp-content/uploads/2025/10/iftas-abandoned-unmanaged-latest.csv',
     severity: 'critical' as const
   },
   // The Bad Space API (if available)
