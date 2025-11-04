@@ -716,18 +716,6 @@ function SafetyTab({ report }: { report: InstanceReport }) {
                       }}>
                         Weight: {match.weight > 0 ? '+' : ''}{match.weight}
                       </span>
-                      {match.isNegated && (
-                        <span style={{
-                          marginLeft: '0.5rem',
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                          border: '1px solid rgba(245, 158, 11, 0.3)',
-                          borderRadius: '3px',
-                          fontSize: '0.75rem'
-                        }}>
-                          NEGATED
-                        </span>
-                      )}
                     </div>
                     <div style={{
                       fontFamily: 'monospace',

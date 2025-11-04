@@ -1,33 +1,12 @@
 /**
  * Enhanced Moderation Policy Analyzer
  *
- * Implements contextual analysis, phrase-level matching, negation detection,
+ * Implements contextual analysis, phrase-level matching,
  * and weighted scoring using comprehensive pattern library.
  */
 
 import { ALL_PATTERNS, RulePattern, CORE_SAFETY_PATTERNS, PROTECTED_CLASS_PATTERNS, POSITIVE_INDICATOR_PATTERNS, RED_FLAG_PATTERNS } from './rulePatterns';
 import type { EnhancedModerationAnalysis, MatchedPattern } from '../types';
-
-/**
- * Negation patterns - only used for positive indicators (appeals, transparency, etc.)
- *
- * IMPORTANT: Safety patterns (hate speech, harassment, violence, discrimination, etc.)
- * are NEVER treated as negated because servers virtually never say things like:
- * - "We allow hate speech"
- * - "No protection for racism"
- * - "Harassment is permitted"
- *
- * If these terms appear in server rules, they are ALWAYS prohibitions.
- */
-const NEGATION_PATTERNS = [
-  /\b(?:no|not|never|without)\s+$/i,
-  /\b(?:don't|doesn't|won't|cannot|isn't|aren't)\s+$/i
-];
-
-/**
- * Context window size for checking negations (characters before match)
- */
-const NEGATION_WINDOW = 30;
 
 /**
  * Enhanced Moderation Policy Analyzer
@@ -110,7 +89,7 @@ export class EnhancedModerationAnalyzer {
   }
 
   /**
-   * Match patterns with contextual analysis and negation detection
+   * Match patterns with contextual analysis
    */
   private static matchPatternsWithContext(text: string, languages: string[]): MatchedPattern[] {
     const matches: MatchedPattern[] = [];
@@ -137,32 +116,12 @@ export class EnhancedModerationAnalyzer {
               const contextEnd = Math.min(lowerText.length, matchEnd + 30);
               const context = text.substring(contextStart, contextEnd);
 
-              // Check for negation in preceding text
-              const precedingText = lowerText.substring(
-                Math.max(0, matchStart - NEGATION_WINDOW),
-                matchStart
-              );
-              const isNegated = this.checkNegation(precedingText, pattern);
-
-              // Calculate effective weight (negated patterns have reduced/reversed weight)
-              let effectiveWeight = pattern.weight;
-              if (isNegated) {
-                if (pattern.isRedFlag) {
-                  // Negating a red flag is good (e.g., "we do NOT allow discrimination")
-                  effectiveWeight = Math.abs(pattern.weight) * 0.5;
-                } else {
-                  // Negating a positive pattern is bad (e.g., "NO protection for harassment")
-                  effectiveWeight = pattern.weight * -0.5;
-                }
-              }
-
               matches.push({
                 category: pattern.category,
                 subcategory: pattern.subcategory,
-                weight: effectiveWeight,
+                weight: pattern.weight,
                 matchedText: match[0],
                 context: context.trim(),
-                isNegated,
                 language: lang,
                 patternUsed: patternStr
               });
@@ -175,46 +134,6 @@ export class EnhancedModerationAnalyzer {
     }
 
     return matches;
-  }
-
-  /**
-   * Check if a match is negated by preceding text
-   *
-   * SIMPLIFIED LOGIC: Safety patterns are NEVER negated.
-   * Servers virtually never say "we allow hate speech" or "no protection for racism".
-   * If safety terms appear in rules, they are ALWAYS prohibitions.
-   *
-   * Only positive indicators (appeals, transparency, etc.) can be negated.
-   */
-  private static checkNegation(precedingText: string, pattern: RulePattern): boolean {
-    // Safety patterns are NEVER negated - if these terms appear, they're being prohibited
-    if (
-      pattern.category === 'csam' ||
-      pattern.category === 'harassment' ||
-      pattern.category === 'hate_speech' ||
-      pattern.category === 'privacy' ||
-      pattern.category === 'consent' ||
-      pattern.category === 'spam' ||
-      pattern.category === 'violence' ||
-      pattern.category === 'misinformation' ||
-      pattern.category === 'protected_class' ||
-      pattern.category === 'umbrella'
-    ) {
-      return false; // NEVER treat as negated
-    }
-
-    // Red flags should also not be negated (we want to detect them)
-    if (pattern.isRedFlag) {
-      return false;
-    }
-
-    // Only check negation for positive indicators (appeals, transparency, etc.)
-    if (pattern.category === 'positive') {
-      return NEGATION_PATTERNS.some(neg => neg.test(precedingText));
-    }
-
-    // Default: not negated
-    return false;
   }
 
   /**
