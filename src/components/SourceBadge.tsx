@@ -4,7 +4,7 @@
  */
 
 interface SourceBadgeProps {
-  source: 'fedidb' | 'instance-api' | 'covenant' | 'blocklist' | 'infrastructure' | 'megalodon' | 'fediverse-observer';
+  source: 'fedidb' | 'instance-api' | 'covenant' | 'blocklist' | 'infrastructure' | 'megalodon' | 'fediverse-observer' | 'nodeinfo' | 'both';
   tooltip?: string;
 }
 
@@ -43,6 +43,16 @@ const sourceConfig = {
     label: 'Fediverse Observer',
     color: '#ec4899', // pink
     icon: '👁️'
+  },
+  'nodeinfo': {
+    label: 'NodeInfo',
+    color: '#14b8a6', // teal
+    icon: 'ℹ️'
+  },
+  'both': {
+    label: 'API + NodeInfo',
+    color: '#00c853', // green success
+    icon: '✓'
   }
 };
 

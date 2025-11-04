@@ -1,4 +1,5 @@
-import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis, EnhancedModerationAnalysis, MetadataScore, NetworkHealthScore } from '../types';
+import type { InstanceReport, SafetyScore, ErrorInfo, ModerationPolicy, InstanceStatus, ModerationAnalysis, EnhancedModerationAnalysis, MetadataScore, NetworkHealthScore, CrossReferencedData, CrossReferencedField, MastodonInstance } from '../types';
+import type { NodeInfo } from './well-known';
 import { FediDBService } from './fedidb';
 import { InstanceAPIService } from './instance';
 import { CovenantService } from './covenant';
@@ -234,6 +235,12 @@ export class ReportGenerator {
       errors
     });
 
+    // Cross-reference data between Instance API and NodeInfo
+    const crossReferencedData = this.createCrossReferencedData(
+      instanceData.instance,
+      'nodeInfo' in wellKnown ? wellKnown.nodeInfo : undefined
+    );
+
     return {
       domain,
       timestamp,
@@ -257,7 +264,8 @@ export class ReportGenerator {
       safetyScore,
       errors,
       instanceStatus,
-      isHistoricalData
+      isHistoricalData,
+      crossReferencedData
     };
   }
 
@@ -414,6 +422,97 @@ export class ReportGenerator {
       },
       flags
     };
+  }
+
+  /**
+   * Create cross-referenced data by comparing Instance API and NodeInfo
+   */
+  private static createCrossReferencedData(
+    instanceData: MastodonInstance | null | undefined,
+    nodeInfo: NodeInfo | null | undefined
+  ): CrossReferencedData | undefined {
+    // If neither source has data, return undefined
+    if (!instanceData && !nodeInfo) {
+      return undefined;
+    }
+
+    const crossRef: CrossReferencedData = {};
+
+    // Helper function to create a cross-referenced field
+    const createField = <T>(
+      apiVal: T | null | undefined,
+      nodeInfoVal: T | null | undefined
+    ): CrossReferencedField<T> => {
+      const apiValue = apiVal ?? null;
+      const nodeInfoValue = nodeInfoVal ?? null;
+      const sources: ('api' | 'nodeinfo')[] = [];
+      if (apiValue !== null) sources.push('api');
+      if (nodeInfoValue !== null) sources.push('nodeinfo');
+
+      // Determine if values match
+      let match = false;
+      if (apiValue !== null && nodeInfoValue !== null) {
+        match = apiValue === nodeInfoValue;
+      }
+
+      // Choose value (prefer API, fallback to NodeInfo)
+      const value = apiValue !== null ? apiValue : nodeInfoValue;
+
+      return { value, apiValue, nodeInfoValue, match, sources };
+    };
+
+    // User count
+    const apiUserCount = instanceData?.stats?.user_count;
+    const nodeInfoUserCount = nodeInfo?.usage?.users?.total;
+    if (apiUserCount !== undefined || nodeInfoUserCount !== undefined) {
+      crossRef.userCount = createField(apiUserCount, nodeInfoUserCount);
+    }
+
+    // Local posts
+    const apiPostCount = instanceData?.stats?.status_count;
+    const nodeInfoPostCount = nodeInfo?.usage?.localPosts;
+    if (apiPostCount !== undefined || nodeInfoPostCount !== undefined) {
+      crossRef.localPosts = createField(apiPostCount, nodeInfoPostCount);
+    }
+
+    // Open registrations
+    const apiRegistrations = instanceData?.registrations;
+    const nodeInfoRegistrations = nodeInfo?.openRegistrations;
+    if (apiRegistrations !== undefined || nodeInfoRegistrations !== undefined) {
+      crossRef.openRegistrations = createField(apiRegistrations, nodeInfoRegistrations);
+    }
+
+    // Software version
+    const apiVersion = instanceData?.version;
+    const nodeInfoVersion = nodeInfo?.software?.version;
+    if (apiVersion !== undefined || nodeInfoVersion !== undefined) {
+      crossRef.softwareVersion = createField(apiVersion, nodeInfoVersion);
+    }
+
+    // Software name
+    const apiSoftwareName = instanceData?.version ?
+      this.extractSoftwareName(instanceData.version) : undefined;
+    const nodeInfoSoftwareName = nodeInfo?.software?.name;
+    if (apiSoftwareName !== undefined || nodeInfoSoftwareName !== undefined) {
+      crossRef.softwareName = createField(apiSoftwareName, nodeInfoSoftwareName);
+    }
+
+    return Object.keys(crossRef).length > 0 ? crossRef : undefined;
+  }
+
+  /**
+   * Extract software name from version string
+   */
+  private static extractSoftwareName(version: string): string | undefined {
+    const v = version.toLowerCase();
+    if (v.includes('mastodon')) return 'mastodon';
+    if (v.includes('pleroma')) return 'pleroma';
+    if (v.includes('misskey')) return 'misskey';
+    if (v.includes('firefish')) return 'firefish';
+    if (v.includes('sharkey')) return 'sharkey';
+    if (v.includes('gotosocial')) return 'gotosocial';
+    if (v.includes('pixelfed')) return 'pixelfed';
+    return undefined;
   }
 
   /**

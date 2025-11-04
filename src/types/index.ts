@@ -24,6 +24,27 @@ export interface InstanceReport {
   errors: ErrorInfo[];
   instanceStatus?: InstanceStatus; // Whether instance is reachable
   isHistoricalData?: boolean; // True if data is from archives/historical sources
+  crossReferencedData?: CrossReferencedData; // Cross-reference between API and NodeInfo
+}
+
+/**
+ * Cross-referenced data between Instance API and NodeInfo
+ * Shows which source(s) provide each field and if values match
+ */
+export interface CrossReferencedData {
+  userCount?: CrossReferencedField<number>;
+  localPosts?: CrossReferencedField<number>;
+  openRegistrations?: CrossReferencedField<boolean>;
+  softwareVersion?: CrossReferencedField<string>;
+  softwareName?: CrossReferencedField<string>;
+}
+
+export interface CrossReferencedField<T> {
+  value: T | null; // Final value to display (prefers API, falls back to NodeInfo)
+  apiValue: T | null; // Value from Instance API
+  nodeInfoValue: T | null; // Value from NodeInfo
+  match: boolean; // Do the values match?
+  sources: ('api' | 'nodeinfo')[]; // Which sources provided data
 }
 
 export interface ModerationAnalysis {
