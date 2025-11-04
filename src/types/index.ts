@@ -12,6 +12,8 @@ export interface InstanceReport {
   moderationPolicies?: ModerationPolicy[];
   moderationAnalysis?: ModerationAnalysis; // Legacy analysis (kept for backward compatibility)
   enhancedModerationAnalysis?: EnhancedModerationAnalysis; // Enhanced contextual analysis with explainability
+  metadataScore?: MetadataScore; // Enhanced metadata quality scoring (0-25 points)
+  networkHealthScore?: NetworkHealthScore; // Dynamic network health scoring (0-25 points)
   peers?: string[];
   peersTotalCount?: number; // Total number of peers before truncation
   blockedInstances?: string[];
@@ -80,6 +82,48 @@ export interface MatchedPattern {
   isNegated: boolean;
   language: string;
   patternUsed: string;
+}
+
+export interface MetadataScore {
+  totalScore: number; // 0-25
+  breakdown: {
+    maturity: number; // 0-8
+    transparency: number; // 0-7
+    registration: number; // 0-5
+    description: number; // 0-5
+  };
+  details: {
+    ageDays?: number;
+    userCount?: number;
+    hasPrivacyPolicy: boolean;
+    hasTerms: boolean;
+    hasContact: boolean;
+    hasSecurityContact: boolean;
+    registrationPolicy: string;
+    descriptionLength: number;
+    descriptionQuality: string;
+  };
+  flags: string[];
+}
+
+export interface NetworkHealthScore {
+  totalScore: number; // 0-25
+  breakdown: {
+    federationHealth: number; // 0-10
+    reputation: number; // 0-8
+    blockingBehavior: number; // 0-4
+    reciprocity: number; // 0-3
+  };
+  details: {
+    peerCount: number;
+    peerPercentile?: number;
+    reputationLevel: 'trusted' | 'neutral' | 'problematic' | 'unknown';
+    blockCount: number;
+    blockRatio?: number;
+    blockedByCount: number;
+    isWidelyBlocked: boolean;
+  };
+  flags: string[];
 }
 
 export interface WellKnownData {
