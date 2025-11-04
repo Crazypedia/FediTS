@@ -9,16 +9,30 @@ import { ALL_PATTERNS, RulePattern, CORE_SAFETY_PATTERNS, PROTECTED_CLASS_PATTER
 import type { EnhancedModerationAnalysis, MatchedPattern } from '../types';
 
 /**
- * Negation patterns that can reverse meaning
+ * Prohibition patterns - these indicate a rule/ban (positive for moderation)
+ * e.g., "No racism", "Don't harass", "Banned: hate speech"
  */
-const NEGATION_PATTERNS = [
-  /\b(?:no|not|never|without|except|excluding|but)\b/i,
-  /\b(?:don't|doesn't|won't|can't|cannot|isn't|aren't)\b/i,
-  /\b(?:unless|however|although|though)\b/i,
-  /\b(?:kein|nicht|nie|ohne)\b/i, // German
-  /\b(?:non|pas|sans|jamais)\b/i, // French
-  /\b(?:no|nunca|sin|jamás)\b/i, // Spanish
-  /\b(?:ない|なし|禁止|違反)\b/i // Japanese
+const PROHIBITION_PATTERNS = [
+  /\b(?:no|not|never|don't|dont)\s+$/i,
+  /\b(?:banned?|prohibited?|forbidden|disallowed?)\b.*$/i,
+  /\b(?:we\s+)?(?:do\s+)?not\s+(?:allow|permit|tolerate)\b.*$/i,
+  /\b(?:verboten|nicht\s+erlaubt)\b.*$/i, // German
+  /\b(?:interdit|défendu)\b.*$/i, // French
+  /\b(?:prohibido|no\s+permitido)\b.*$/i, // Spanish
+  /\b(?:禁止|違反)\b.*$/i // Japanese
+];
+
+/**
+ * True negation patterns - these negate protection (negative for moderation)
+ * e.g., "No protection for", "Not covered", "Except for"
+ */
+const TRUE_NEGATION_PATTERNS = [
+  /\b(?:no|not|never)\s+(?:protection|policy|rule|coverage|moderation)\s+(?:for|against|on)\s*$/i,
+  /\b(?:except|excluding|but\s+not|other\s+than)\s*$/i,
+  /\b(?:unless|however|although)\s*$/i,
+  /\b(?:kein.*schutz|keine.*richtlinie)\s*$/i, // German
+  /\b(?:pas.*protection|sans.*politique)\s*$/i, // French
+  /\b(?:sin.*protección|excepto)\s*$/i // Spanish
 ];
 
 /**
@@ -176,17 +190,46 @@ export class EnhancedModerationAnalyzer {
 
   /**
    * Check if a match is negated by preceding text
+   *
+   * This distinguishes between:
+   * - Prohibition statements: "No racism" = GOOD (not negated)
+   * - True negation: "No protection for racism" = BAD (negated)
    */
   private static checkNegation(precedingText: string, pattern: RulePattern): boolean {
+    // For safety and protected class patterns, check if this is a prohibition statement
+    // e.g., "No racism", "Don't harass", "Banned: hate speech"
+    const isProhibitionStatement = PROHIBITION_PATTERNS.some(p => p.test(precedingText));
+    if (isProhibitionStatement && (
+      pattern.category === 'csam' ||
+      pattern.category === 'harassment' ||
+      pattern.category === 'hate_speech' ||
+      pattern.category === 'privacy' ||
+      pattern.category === 'consent' ||
+      pattern.category === 'spam' ||
+      pattern.category === 'violence' ||
+      pattern.category === 'misinformation' ||
+      pattern.category === 'protected_class' ||
+      pattern.category === 'umbrella'
+    )) {
+      // This is a prohibition (e.g., "No racism"), NOT a negation
+      return false;
+    }
+
+    // Check for true negation (e.g., "No protection for", "Not covered")
+    const isTrueNegation = TRUE_NEGATION_PATTERNS.some(p => p.test(precedingText));
+    if (isTrueNegation) {
+      return true;
+    }
+
     // Red flags should be checked more strictly (we want to detect them even with negation nearby)
     if (pattern.isRedFlag) {
       // Only consider it negated if there's a strong negation very close
       const closeWindow = precedingText.slice(-20);
-      return NEGATION_PATTERNS.some(neg => neg.test(closeWindow));
+      return TRUE_NEGATION_PATTERNS.some(neg => neg.test(closeWindow));
     }
 
-    // For positive patterns, check the full window
-    return NEGATION_PATTERNS.some(neg => neg.test(precedingText));
+    // Default: not negated
+    return false;
   }
 
   /**
