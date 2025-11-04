@@ -217,24 +217,28 @@ export class EnhancedModerationAnalyzer {
 
   /**
    * Normalize score to 0-37.5 range for compatibility with existing system
+   * Made more generous to account for umbrella patterns and freeform moderation language
    */
   private static normalizeScore(rawScore: number): number {
     // Expected score range:
+    // - Umbrella patterns: 5 patterns × 6-8 points = ~40 points (NEW)
     // - Core safety patterns: 8 categories × 5 points = 40 points
     // - Protected classes: 6 classes × 2-3 points = ~15 points
     // - Positive indicators: 5 indicators × 2-3 points = ~12 points
-    // - Total positive potential: ~67 points
+    // - Total positive potential: ~107 points (with umbrellas)
     // - Red flags can subtract up to ~50 points
 
-    // Map raw score to 0-37.5 scale
+    // Map raw score to 0-37.5 scale (more generous at lower scores)
     // 0 points = 0
-    // 30+ points = 25 (base)
-    // 50+ points = 37.5 (exceptional)
+    // 8+ points = 15 (basic moderation)
+    // 20+ points = 25 (good moderation)
+    // 35+ points = 37.5 (exceptional)
 
     if (rawScore <= 0) return 0;
-    if (rawScore < 15) return rawScore * 0.5; // 0-7.5 range
-    if (rawScore < 30) return 7.5 + ((rawScore - 15) * 1.17); // 7.5-25 range
-    if (rawScore < 50) return 25 + ((rawScore - 30) * 0.625); // 25-37.5 range
+    if (rawScore < 8) return rawScore * 1.0; // 0-8 range, very generous for low scores
+    if (rawScore < 20) return 8 + ((rawScore - 8) * 0.58); // 8-15 range
+    if (rawScore < 35) return 15 + ((rawScore - 20) * 0.67); // 15-25 range
+    if (rawScore < 50) return 25 + ((rawScore - 35) * 0.83); // 25-37.5 range
 
     return 37.5; // Cap at maximum
   }
