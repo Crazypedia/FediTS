@@ -195,6 +195,62 @@ export default function ReportTabs({ report }: ReportTabsProps) {
 function AboutTab({ report }: { report: InstanceReport }) {
   const instance = report.instanceData;
 
+  // Render cross-referenced field with checkmark or multiple values
+  const renderCrossRefField = (
+    field: { value: any | null; apiValue: any | null; nodeInfoValue: any | null; match: boolean; sources: ('api' | 'nodeinfo')[] } | undefined,
+    formatter?: (val: any) => string
+  ) => {
+    if (!field || field.value === null) return null;
+
+    const format = formatter || ((v: any) => String(v));
+    const greenCheck = <span style={{ color: '#00c853', marginLeft: '0.5rem' }}>✓</span>;
+
+    // Both sources agree
+    if (field.match && field.sources.length === 2) {
+      return (
+        <>
+          {format(field.value)}
+          {greenCheck}
+          <SourceBadge
+            source="both"
+            tooltip="Confirmed by both Instance API and NodeInfo"
+          />
+        </>
+      );
+    }
+
+    // Only one source
+    if (field.sources.length === 1) {
+      return (
+        <>
+          {format(field.value)}
+          <SourceBadge
+            source={field.sources[0] === 'api' ? 'instance-api' : 'nodeinfo'}
+            tooltip={field.sources[0] === 'api' ? 'From Instance API' : 'From NodeInfo'}
+          />
+        </>
+      );
+    }
+
+    // Both sources but different values - show both
+    if (!field.match && field.apiValue !== null && field.nodeInfoValue !== null) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div>
+            {format(field.apiValue)}
+            <SourceBadge source="instance-api" tooltip="From Instance API" />
+          </div>
+          <div>
+            {format(field.nodeInfoValue)}
+            <SourceBadge source="nodeinfo" tooltip="From NodeInfo" />
+          </div>
+        </div>
+      );
+    }
+
+    return <>{format(field.value)}</>;
+  };
+
   return (
     <div>
       {/* Instance Banner/Hero Image */}
@@ -288,45 +344,53 @@ function AboutTab({ report }: { report: InstanceReport }) {
         <dt style={{ fontWeight: 'bold' }}>Report Generated:</dt>
         <dd>{report.timestamp.toLocaleString()}</dd>
 
-        {/* User Statistics */}
-        {instance?.stats?.user_count !== undefined && (
+        {/* User Statistics - Cross-referenced */}
+        {report.crossReferencedData?.userCount && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Total Users:</dt>
             <dd>
-              {instance.stats.user_count.toLocaleString()}
-              <SourceBadge source="instance-api" tooltip="From /api/v1/instance stats" />
+              {renderCrossRefField(
+                report.crossReferencedData.userCount,
+                (v: number) => v.toLocaleString()
+              )}
             </dd>
           </>
         )}
 
-        {instance?.stats?.status_count !== undefined && (
+        {report.crossReferencedData?.localPosts && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Total Posts:</dt>
-            <dd>{instance.stats.status_count.toLocaleString()}</dd>
+            <dd>
+              {renderCrossRefField(
+                report.crossReferencedData.localPosts,
+                (v: number) => v.toLocaleString()
+              )}
+            </dd>
           </>
         )}
 
         {instance?.stats?.domain_count !== undefined && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Known Instances:</dt>
-            <dd>{instance.stats.domain_count.toLocaleString()}</dd>
+            <dd>
+              {instance.stats.domain_count.toLocaleString()}
+              <SourceBadge source="instance-api" tooltip="From /api/v1/instance stats" />
+            </dd>
           </>
         )}
 
-        {/* Registration Status */}
-        {instance?.registrations !== undefined && (
+        {/* Registration Status - Cross-referenced */}
+        {report.crossReferencedData?.openRegistrations && (
           <>
             <dt style={{ fontWeight: 'bold' }}>Registrations:</dt>
             <dd>
-              {instance.registrations ? (
-                <>
-                  <span className="success">✓ Open</span>
-                  {instance.approval_required && <span style={{ color: '#888', marginLeft: '0.5rem' }}>(approval required)</span>}
-                </>
-              ) : (
-                <span>⨯ Closed</span>
+              {renderCrossRefField(
+                report.crossReferencedData.openRegistrations,
+                (v: boolean) => v ? '✓ Open' : '⨯ Closed'
               )}
-              <SourceBadge source="instance-api" tooltip="From /api/v1/instance" />
+              {instance?.approval_required && report.crossReferencedData.openRegistrations.value && (
+                <span style={{ color: '#888', marginLeft: '0.5rem' }}>(approval required)</span>
+              )}
             </dd>
           </>
         )}
