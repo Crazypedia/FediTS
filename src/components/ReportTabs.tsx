@@ -398,6 +398,35 @@ function SafetyTab({ report }: { report: InstanceReport }) {
             </span>
           </div>
 
+          {/* Server Covenant Alignment */}
+          {report.enhancedModerationAnalysis.serverCovenantAlignment && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              backgroundColor: report.enhancedModerationAnalysis.serverCovenantAlignment.meetsRequirements
+                ? 'rgba(16, 185, 129, 0.1)'
+                : 'rgba(245, 158, 11, 0.1)',
+              border: report.enhancedModerationAnalysis.serverCovenantAlignment.meetsRequirements
+                ? '1px solid rgba(16, 185, 129, 0.3)'
+                : '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '8px'
+            }}>
+              <strong>Fediverse Server Covenant Alignment:</strong> {report.enhancedModerationAnalysis.serverCovenantAlignment.score}/100
+              {report.enhancedModerationAnalysis.serverCovenantAlignment.meetsRequirements && (
+                <span style={{ marginLeft: '0.5rem', color: 'var(--success-color)' }}>✓ Meets Requirements</span>
+              )}
+              <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#888' }}>
+                Active moderation against:
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', marginTop: '0.25rem' }}>
+                  <span>{report.enhancedModerationAnalysis.serverCovenantAlignment.details.hasRacismPolicy ? '✓' : '⨯'} Racism</span>
+                  <span>{report.enhancedModerationAnalysis.serverCovenantAlignment.details.hasSexismPolicy ? '✓' : '⨯'} Sexism</span>
+                  <span>{report.enhancedModerationAnalysis.serverCovenantAlignment.details.hasHomophobiaPolicy ? '✓' : '⨯'} Homophobia</span>
+                  <span>{report.enhancedModerationAnalysis.serverCovenantAlignment.details.hasTransphobiaPolicy ? '✓' : '⨯'} Transphobia</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Categories Covered */}
           {report.enhancedModerationAnalysis.categoriesCovered.length > 0 && (
             <div style={{ marginBottom: '1rem' }}>
@@ -476,9 +505,147 @@ function SafetyTab({ report }: { report: InstanceReport }) {
 
           {/* Languages Detected */}
           {report.enhancedModerationAnalysis.detectedLanguages.length > 0 && (
-            <div style={{ fontSize: '0.85rem', color: '#888' }}>
+            <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1rem' }}>
               Languages detected: {report.enhancedModerationAnalysis.detectedLanguages.join(', ')}
+              {report.enhancedModerationAnalysis.detectedLanguages.length > 1 && (
+                <span style={{ marginLeft: '0.5rem', color: 'var(--success-color)' }}>
+                  (+{(report.enhancedModerationAnalysis.detectedLanguages.length - 1) * 5} multi-language bonus!)
+                </span>
+              )}
             </div>
+          )}
+
+          {/* Debug: Pattern Matches Visualization */}
+          {report.enhancedModerationAnalysis.matchedPatterns && report.enhancedModerationAnalysis.matchedPatterns.length > 0 && (
+            <details style={{ marginTop: '1.5rem' }}>
+              <summary style={{
+                cursor: 'pointer',
+                padding: '0.75rem',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}>
+                🔍 Debug: Pattern Detection Details ({report.enhancedModerationAnalysis.matchedPatterns.length} matches)
+              </summary>
+              <div style={{
+                marginTop: '0.5rem',
+                padding: '1rem',
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '4px',
+                maxHeight: '400px',
+                overflow: 'auto'
+              }}>
+                <p style={{ fontSize: '0.9rem', color: '#888', marginBottom: '1rem' }}>
+                  This shows exactly what patterns were detected in the rules and where they were triggered.
+                </p>
+                {report.enhancedModerationAnalysis.matchedPatterns.map((match, idx) => (
+                  <div key={idx} style={{
+                    marginBottom: '1rem',
+                    padding: '0.75rem',
+                    backgroundColor: match.weight > 0
+                      ? 'rgba(16, 185, 129, 0.05)'
+                      : 'rgba(239, 68, 68, 0.05)',
+                    border: '1px solid ' + (match.weight > 0
+                      ? 'rgba(16, 185, 129, 0.2)'
+                      : 'rgba(239, 68, 68, 0.2)'),
+                    borderRadius: '4px'
+                  }}>
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <strong style={{ color: match.weight > 0 ? 'var(--success-color)' : 'var(--danger-color)' }}>
+                        {match.category} → {match.subcategory}
+                      </strong>
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        borderRadius: '3px',
+                        fontSize: '0.75rem'
+                      }}>
+                        {match.language.toUpperCase()}
+                      </span>
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        fontSize: '0.85rem',
+                        color: '#888'
+                      }}>
+                        Weight: {match.weight > 0 ? '+' : ''}{match.weight}
+                      </span>
+                      {match.isNegated && (
+                        <span style={{
+                          marginLeft: '0.5rem',
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '0.75rem'
+                        }}>
+                          NEGATED
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      padding: '0.5rem',
+                      borderRadius: '3px',
+                      marginBottom: '0.5rem',
+                      lineHeight: '1.6'
+                    }}>
+                      {/* Highlight the matched text within context */}
+                      {(() => {
+                        const contextLower = match.context.toLowerCase();
+                        const matchLower = match.matchedText.toLowerCase();
+                        const matchIndex = contextLower.indexOf(matchLower);
+
+                        if (matchIndex === -1) {
+                          return (
+                            <>
+                              ...{match.context}...
+                              <br />
+                              <strong style={{
+                                backgroundColor: 'rgba(251, 191, 36, 0.3)',
+                                padding: '0.125rem 0.25rem',
+                                borderRadius: '2px'
+                              }}>
+                                {match.matchedText}
+                              </strong>
+                            </>
+                          );
+                        }
+
+                        const before = match.context.substring(0, matchIndex);
+                        const highlighted = match.context.substring(matchIndex, matchIndex + match.matchedText.length);
+                        const after = match.context.substring(matchIndex + match.matchedText.length);
+
+                        return (
+                          <>
+                            {before.length > 0 && '...'}
+                            {before}
+                            <strong style={{
+                              backgroundColor: 'rgba(251, 191, 36, 0.4)',
+                              padding: '0.125rem 0.25rem',
+                              borderRadius: '2px',
+                              color: '#000'
+                            }}>
+                              {highlighted}
+                            </strong>
+                            {after}
+                            {after.length > 0 && '...'}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#888' }}>
+                      Pattern: <code>{match.patternUsed}</code>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
         </div>
       )}
@@ -1045,6 +1212,54 @@ function PoliciesTab({ report }: { report: InstanceReport }) {
           <li><strong>Megalodon Library:</strong> Server type detection and metadata extraction</li>
         </ul>
       </div>
+
+      {/* Terms of Service & Privacy Policy Links */}
+      {(() => {
+        const termsUrl = instance?.configuration?.urls?.terms_of_service || (wellKnown?.nodeInfo?.metadata?.termsOfService) || (wellKnown?.nodeInfo?.metadata?.tosUrl) || (wellKnown?.nodeInfo?.metadata?.terms);
+        const privacyUrl = instance?.configuration?.urls?.privacy_policy || (wellKnown?.nodeInfo?.metadata?.privacyPolicyUrl) || (wellKnown?.nodeInfo?.metadata?.privacyPolicy) || (wellKnown?.nodeInfo?.metadata?.privacy);
+
+        if (termsUrl || privacyUrl) {
+          return (
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ marginBottom: '0.75rem' }}>Terms of Service & Privacy Policy</h4>
+              <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem' }}>
+                {termsUrl && (
+                  <>
+                    <dt style={{ fontWeight: 'bold' }}>Terms of Service:</dt>
+                    <dd>
+                      <a href={termsUrl.toString()} target="_blank" rel="noopener noreferrer">
+                        {termsUrl.toString()}
+                      </a>
+                      <SourceBadge
+                        source={instance?.configuration?.urls?.terms_of_service ? 'instance-api' : 'instance-api'}
+                        tooltip={instance?.configuration?.urls?.terms_of_service ? 'From /api/v1/instance configuration.urls' : 'From .well-known/nodeinfo metadata'}
+                      />
+                    </dd>
+                  </>
+                )}
+                {privacyUrl && (
+                  <>
+                    <dt style={{ fontWeight: 'bold' }}>Privacy Policy:</dt>
+                    <dd>
+                      <a href={privacyUrl.toString()} target="_blank" rel="noopener noreferrer">
+                        {privacyUrl.toString()}
+                      </a>
+                      <SourceBadge
+                        source={instance?.configuration?.urls?.privacy_policy ? 'instance-api' : 'instance-api'}
+                        tooltip={instance?.configuration?.urls?.privacy_policy ? 'From /api/v1/instance configuration.urls' : 'From .well-known/nodeinfo metadata'}
+                      />
+                    </dd>
+                  </>
+                )}
+              </dl>
+              <p style={{ fontSize: '0.85rem', color: '#888', marginTop: '0.5rem' }}>
+                💡 Tip: Review these documents to understand how your data is handled and what behavior is expected on this instance.
+              </p>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Security Contact Information */}
       {wellKnown?.securityTxt && (

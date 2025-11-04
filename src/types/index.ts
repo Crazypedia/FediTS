@@ -61,6 +61,18 @@ export interface EnhancedModerationAnalysis {
   // Language detection
   detectedLanguages: string[];
 
+  // Server Covenant alignment
+  serverCovenantAlignment: {
+    score: number; // 0-100, how well rules align with covenant requirements
+    meetsRequirements: boolean; // Addresses racism, sexism, homophobia, transphobia
+    details: {
+      hasRacismPolicy: boolean;
+      hasSexismPolicy: boolean;
+      hasHomophobiaPolicy: boolean;
+      hasTransphobiaPolicy: boolean;
+    };
+  };
+
   // Explainability
   strengths: string[];
   weaknesses: string[];
@@ -297,7 +309,13 @@ export interface MastodonInstance {
     streaming_api?: string;
   };
   languages?: string[];
-  configuration?: any;
+  configuration?: {
+    urls?: {
+      terms_of_service?: string;
+      privacy_policy?: string;
+    };
+    [key: string]: any;
+  };
 }
 
 export interface MastodonRule {

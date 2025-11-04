@@ -6,49 +6,7 @@
  */
 
 import { ALL_PATTERNS, RulePattern, CORE_SAFETY_PATTERNS, PROTECTED_CLASS_PATTERNS, POSITIVE_INDICATOR_PATTERNS, RED_FLAG_PATTERNS } from './rulePatterns';
-
-export interface EnhancedModerationAnalysis {
-  // Overall scoring
-  totalScore: number; // Weighted score (0-100+ with bonuses)
-  normalizedScore: number; // 0-37.5 for compatibility with existing system
-  confidence: number; // 0-100, based on rule length and specificity
-
-  // Coverage metrics
-  categoriesCovered: string[];
-  protectedClassesCovered: string[];
-  positiveIndicators: string[];
-  redFlags: string[];
-
-  // Pattern matching results
-  matchedPatterns: MatchedPattern[];
-  missingCategories: string[];
-
-  // Language detection
-  detectedLanguages: string[];
-
-  // Explainability
-  strengths: string[];
-  weaknesses: string[];
-  suggestions: string[];
-
-  // Backward compatibility
-  legacy: {
-    totalKeywords: number;
-    categoriesAddressed: string[];
-    meetsMinimum: boolean;
-  };
-}
-
-export interface MatchedPattern {
-  category: string;
-  subcategory: string;
-  weight: number;
-  matchedText: string;
-  context: string; // Surrounding text for context
-  isNegated: boolean;
-  language: string;
-  patternUsed: string;
-}
+import type { EnhancedModerationAnalysis, MatchedPattern } from '../types';
 
 /**
  * Negation patterns that can reverse meaning
@@ -99,9 +57,12 @@ export class EnhancedModerationAnalyzer {
     // Identify gaps
     const missingCategories = this.identifyMissingCategories(matchedPatterns);
 
+    // Calculate Server Covenant alignment
+    const serverCovenantAlignment = this.calculateServerCovenantAlignment(matchedPatterns);
+
     // Generate explanations
-    const strengths = this.identifyStrengths(matchedPatterns, categoriesCovered, positiveIndicators);
-    const weaknesses = this.identifyWeaknesses(missingCategories, redFlags);
+    const strengths = this.identifyStrengths(matchedPatterns, categoriesCovered, positiveIndicators, serverCovenantAlignment);
+    const weaknesses = this.identifyWeaknesses(missingCategories, redFlags, serverCovenantAlignment);
     const suggestions = this.generateSuggestions(missingCategories, weaknesses);
 
     // Legacy compatibility metrics
@@ -118,6 +79,7 @@ export class EnhancedModerationAnalyzer {
       matchedPatterns,
       missingCategories,
       detectedLanguages,
+      serverCovenantAlignment,
       strengths,
       weaknesses,
       suggestions,
@@ -306,9 +268,12 @@ export class EnhancedModerationAnalyzer {
     if (hasRedFlags) confidence -= 15;
 
     // Factor 5: Language diversity (multi-language shows inclusive approach)
+    // Increased bonus for multilingual policies
     const languages = new Set(matches.map(m => m.language));
-    if (languages.size > 2) confidence += 10;
-    else if (languages.size > 1) confidence += 5;
+    if (languages.size >= 4) confidence += 20; // 4+ languages: highly inclusive
+    else if (languages.size === 3) confidence += 15; // 3 languages: very inclusive
+    else if (languages.size === 2) confidence += 10; // 2 languages: inclusive
+    // Single language: no bonus
 
     return Math.max(0, Math.min(100, confidence));
   }
@@ -327,6 +292,60 @@ export class EnhancedModerationAnalyzer {
     }
 
     return Array.from(categories);
+  }
+
+  /**
+   * Calculate Server Covenant alignment score
+   * Based on: "Active moderation against racism, sexism, homophobia and transphobia"
+   */
+  private static calculateServerCovenantAlignment(matches: MatchedPattern[]): {
+    score: number;
+    meetsRequirements: boolean;
+    details: {
+      hasRacismPolicy: boolean;
+      hasSexismPolicy: boolean;
+      hasHomophobiaPolicy: boolean;
+      hasTransphobiaPolicy: boolean;
+    };
+  } {
+    // Check for each required policy area
+    const hasRacismPolicy = matches.some(m =>
+      m.category.includes('Protected Class: Race') && m.weight > 0
+    );
+
+    const hasSexismPolicy = matches.some(m =>
+      (m.category.includes('Protected Class: Gender') ||
+       m.category.includes('Core Safety: Sexism')) && m.weight > 0
+    );
+
+    const hasHomophobiaPolicy = matches.some(m =>
+      m.category.includes('Protected Class: Sexual Orientation') && m.weight > 0
+    );
+
+    const hasTransphobiaPolicy = matches.some(m =>
+      m.category.includes('Protected Class: Gender Identity') && m.weight > 0
+    );
+
+    // Calculate score (25 points each)
+    let score = 0;
+    if (hasRacismPolicy) score += 25;
+    if (hasSexismPolicy) score += 25;
+    if (hasHomophobiaPolicy) score += 25;
+    if (hasTransphobiaPolicy) score += 25;
+
+    // Bonus for comprehensive coverage (all four areas)
+    const meetsRequirements = hasRacismPolicy && hasSexismPolicy && hasHomophobiaPolicy && hasTransphobiaPolicy;
+
+    return {
+      score,
+      meetsRequirements,
+      details: {
+        hasRacismPolicy,
+        hasSexismPolicy,
+        hasHomophobiaPolicy,
+        hasTransphobiaPolicy
+      }
+    };
   }
 
   /**
@@ -361,9 +380,17 @@ export class EnhancedModerationAnalyzer {
   private static identifyStrengths(
     matches: MatchedPattern[],
     categoriesCovered: string[],
-    positiveIndicators: string[]
+    positiveIndicators: string[],
+    serverCovenantAlignment: any
   ): string[] {
     const strengths: string[] = [];
+
+    // Check Server Covenant alignment
+    if (serverCovenantAlignment.meetsRequirements) {
+      strengths.push('✓ Fully aligns with Fediverse Server Covenant anti-harassment requirements');
+    } else if (serverCovenantAlignment.score >= 75) {
+      strengths.push('Strong alignment with Fediverse Server Covenant requirements (missing 1 area)');
+    }
 
     // Check coverage
     if (categoriesCovered.length >= 8) {
@@ -403,9 +430,23 @@ export class EnhancedModerationAnalyzer {
    */
   private static identifyWeaknesses(
     missingCategories: string[],
-    redFlags: string[]
+    redFlags: string[],
+    serverCovenantAlignment: any
   ): string[] {
     const weaknesses: string[] = [];
+
+    // Check Server Covenant alignment gaps
+    if (!serverCovenantAlignment.meetsRequirements) {
+      const missing: string[] = [];
+      if (!serverCovenantAlignment.details.hasRacismPolicy) missing.push('racism');
+      if (!serverCovenantAlignment.details.hasSexismPolicy) missing.push('sexism');
+      if (!serverCovenantAlignment.details.hasHomophobiaPolicy) missing.push('homophobia');
+      if (!serverCovenantAlignment.details.hasTransphobiaPolicy) missing.push('transphobia');
+
+      if (missing.length > 0) {
+        weaknesses.push(`⚠ Server Covenant gap: Missing explicit policies against ${missing.join(', ')}`);
+      }
+    }
 
     // Check for red flags
     if (redFlags.includes('Free Speech Absolutism')) {
