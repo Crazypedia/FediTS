@@ -9,36 +9,25 @@ import { ALL_PATTERNS, RulePattern, CORE_SAFETY_PATTERNS, PROTECTED_CLASS_PATTER
 import type { EnhancedModerationAnalysis, MatchedPattern } from '../types';
 
 /**
- * Prohibition patterns - these indicate a rule/ban (positive for moderation)
- * e.g., "No racism", "Don't harass", "Banned: hate speech"
+ * Negation patterns - only used for positive indicators (appeals, transparency, etc.)
+ *
+ * IMPORTANT: Safety patterns (hate speech, harassment, violence, discrimination, etc.)
+ * are NEVER treated as negated because servers virtually never say things like:
+ * - "We allow hate speech"
+ * - "No protection for racism"
+ * - "Harassment is permitted"
+ *
+ * If these terms appear in server rules, they are ALWAYS prohibitions.
  */
-const PROHIBITION_PATTERNS = [
-  /\b(?:no|not|never|don't|dont)\s+$/i,
-  /\b(?:banned?|prohibited?|forbidden|disallowed?)\b.*$/i,
-  /\b(?:we\s+)?(?:do\s+)?not\s+(?:allow|permit|tolerate)\b.*$/i,
-  /\b(?:verboten|nicht\s+erlaubt)\b.*$/i, // German
-  /\b(?:interdit|défendu)\b.*$/i, // French
-  /\b(?:prohibido|no\s+permitido)\b.*$/i, // Spanish
-  /\b(?:禁止|違反)\b.*$/i // Japanese
-];
-
-/**
- * True negation patterns - these negate protection (negative for moderation)
- * e.g., "No protection for", "Not covered", "Except for"
- */
-const TRUE_NEGATION_PATTERNS = [
-  /\b(?:no|not|never)\s+(?:protection|policy|rule|coverage|moderation)\s+(?:for|against|on)\s*$/i,
-  /\b(?:except|excluding|but\s+not|other\s+than)\s*$/i,
-  /\b(?:unless|however|although)\s*$/i,
-  /\b(?:kein.*schutz|keine.*richtlinie)\s*$/i, // German
-  /\b(?:pas.*protection|sans.*politique)\s*$/i, // French
-  /\b(?:sin.*protección|excepto)\s*$/i // Spanish
+const NEGATION_PATTERNS = [
+  /\b(?:no|not|never|without)\s+$/i,
+  /\b(?:don't|doesn't|won't|cannot|isn't|aren't)\s+$/i
 ];
 
 /**
  * Context window size for checking negations (characters before match)
  */
-const NEGATION_WINDOW = 50;
+const NEGATION_WINDOW = 30;
 
 /**
  * Enhanced Moderation Policy Analyzer
@@ -191,15 +180,15 @@ export class EnhancedModerationAnalyzer {
   /**
    * Check if a match is negated by preceding text
    *
-   * This distinguishes between:
-   * - Prohibition statements: "No racism" = GOOD (not negated)
-   * - True negation: "No protection for racism" = BAD (negated)
+   * SIMPLIFIED LOGIC: Safety patterns are NEVER negated.
+   * Servers virtually never say "we allow hate speech" or "no protection for racism".
+   * If safety terms appear in rules, they are ALWAYS prohibitions.
+   *
+   * Only positive indicators (appeals, transparency, etc.) can be negated.
    */
   private static checkNegation(precedingText: string, pattern: RulePattern): boolean {
-    // For safety and protected class patterns, check if this is a prohibition statement
-    // e.g., "No racism", "Don't harass", "Banned: hate speech"
-    const isProhibitionStatement = PROHIBITION_PATTERNS.some(p => p.test(precedingText));
-    if (isProhibitionStatement && (
+    // Safety patterns are NEVER negated - if these terms appear, they're being prohibited
+    if (
       pattern.category === 'csam' ||
       pattern.category === 'harassment' ||
       pattern.category === 'hate_speech' ||
@@ -210,22 +199,18 @@ export class EnhancedModerationAnalyzer {
       pattern.category === 'misinformation' ||
       pattern.category === 'protected_class' ||
       pattern.category === 'umbrella'
-    )) {
-      // This is a prohibition (e.g., "No racism"), NOT a negation
+    ) {
+      return false; // NEVER treat as negated
+    }
+
+    // Red flags should also not be negated (we want to detect them)
+    if (pattern.isRedFlag) {
       return false;
     }
 
-    // Check for true negation (e.g., "No protection for", "Not covered")
-    const isTrueNegation = TRUE_NEGATION_PATTERNS.some(p => p.test(precedingText));
-    if (isTrueNegation) {
-      return true;
-    }
-
-    // Red flags should be checked more strictly (we want to detect them even with negation nearby)
-    if (pattern.isRedFlag) {
-      // Only consider it negated if there's a strong negation very close
-      const closeWindow = precedingText.slice(-20);
-      return TRUE_NEGATION_PATTERNS.some(neg => neg.test(closeWindow));
+    // Only check negation for positive indicators (appeals, transparency, etc.)
+    if (pattern.category === 'positive') {
+      return NEGATION_PATTERNS.some(neg => neg.test(precedingText));
     }
 
     // Default: not negated
